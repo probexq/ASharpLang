@@ -80,10 +80,8 @@ public class CodeGenVisitor
                     _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Abs", new[] { typeof(double) })!, null);
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
-                    foreach (var arg in c.Args){ 
-                        Visit(arg);
-                        _compiler.IL.EmitCall(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new Type[] {typeof(double)})!, null);
-                    }
+                    Visit(c.Args[0]);
+                    _compiler.IL.EmitCall(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new Type[] {typeof(double)})!, null);
                 }
                 else
                 {

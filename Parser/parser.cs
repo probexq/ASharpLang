@@ -74,11 +74,7 @@ public class Parser{
         while(Current.Type != TokenType.EOF){
             Node stmt = Current.Type == TokenType.LET ? parse_let() : parse_expr();
             stats.Add(stmt);
-            if (Current.Type == TokenType.COMMA) {
-                advance();
-            }   else    {
-                throw new Exception("Excpected ',' after statement");
-            }
+            expect(TokenType.COMMA);
         }
         return new ProgramNode(stats);
     }
