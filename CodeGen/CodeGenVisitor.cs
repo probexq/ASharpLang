@@ -81,6 +81,7 @@ public class CodeGenVisitor
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
                     Visit(c.Args[0]);
+                    _compiler.IL.Emit(OpCodes.Dup);
                     _compiler.IL.EmitCall(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new Type[] {typeof(double)})!, null);
                 }
                 else
