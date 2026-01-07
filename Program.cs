@@ -1,4 +1,3 @@
-using System;
 using ASharp.Compiler.Codegen;
 using ASharp.Compiler.Lexere;
 using ASharp.Compiler.Parsing;
@@ -14,7 +13,7 @@ internal static class Program
             return;
         }
         
-        var file = args[0];
+        var file = Path.GetFullPath(args[0]);
         var source = File.ReadAllText(file);
 
         var lexer = new Lexer(source);
@@ -24,12 +23,11 @@ internal static class Program
         var ast = parser.parse();
 
         var compiler = new ILCompiler();
-        var codegen = new CodeGenVisitor(compiler);
+        var codegen = new CodeGenVisitor(compiler, file);
         codegen.Visit(ast);
 
         var programType = compiler.Finish();
         var result = programType.GetMethod("Main")!.Invoke(null, null);
 
-        Console.WriteLine(result);
     }
 }

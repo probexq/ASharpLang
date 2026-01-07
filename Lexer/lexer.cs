@@ -7,13 +7,13 @@ namespace ASharp.Compiler.Lexere;
 public enum TokenType{
     NUMBER, IDENT, // 3, x - Basic
     PLUS, MINUS, MULT, DIV, POW, // +, -, *, /, ^ - Binary
-    SQRT, ROUND, ABS, // _, ~, || - Unary
+    SQRT, ROUND, ABS, // _, ~, |x| - Unary
     NOT, AND, OR, // !, &, -- - Logical 
-    MAX, MIN, // ++(), --() - Functional
+    MAX, MIN, // ++(), --() - Syntax Functions
     COMMA, LPAR, RPAR, // , ( ) - syntax
     LET, // let - keywords
     LOG, // log() basic terminal functions
-    LAMBDA, EQ, // :: - Misc
+    LAMBDA, EQ, IMPORT, // :: - Misc
     EOF
 }
 
@@ -36,6 +36,8 @@ public class Lexer {
 
     public Lexer(string text) => _text = text;
     private void advance() => _pos++;
+    private char peek() => _text[_pos + 1];
+    private char peek_next() => _text[_pos + 2];
     private void SkipWhitespace(){
         while(char.IsWhiteSpace(Current)) advance();
     }
@@ -86,8 +88,18 @@ public class Lexer {
                     } else throw new Exception($"Unexpected character ':' at {_pos}");
                     break;
                     case '=': tokens.Add(new Token(TokenType.EQ, "=")); advance(); break;
+                    case '$': tokens.Add(new Token(TokenType.IMPORT, "$")); advance(); break;
                     case '(': tokens.Add(new Token(TokenType.LPAR, "(")); advance(); break;
                     case ')': tokens.Add(new Token(TokenType.RPAR, ")")); advance(); break;
+                    // handle comments
+                    case '`': advance(); if(peek() == '<') {
+                        advance();
+                        while(!(peek() == '>' && peek_next() == '`') && peek() != '\0') advance();
+                        advance(); advance();
+                    } else {
+                        while(peek() != '\n' && peek() != '\0') advance();
+                    }
+                    break;
                     default: throw new Exception($"Unknown character: {Current}");
                 }
             }

@@ -72,9 +72,12 @@ public class Parser{
         var stats = new List<Node>();
 
         while(Current.Type != TokenType.EOF){
-            Node stmt = Current.Type == TokenType.LET ? parse_let() : parse_expr();
-            stats.Add(stmt);
-            expect(TokenType.COMMA);
+            if(Current.Type == TokenType.IMPORT) stats.Add(parse_import());
+            else {
+                Node stmt = Current.Type == TokenType.LET ? parse_let() : parse_expr();
+                stats.Add(stmt);
+                expect(TokenType.COMMA);
+            }
         }
         return new ProgramNode(stats);
     }
@@ -85,6 +88,13 @@ public class Parser{
         expect(TokenType.EQ);
         var value = parse_expr();
         return new LetNode(nameToken.Value, value);
+    }
+
+    public Node parse_import(){
+        advance();
+        var pathToken = expect(TokenType.IDENT);
+        expect(TokenType.COMMA);
+        return new ImportNode(pathToken.Value + ".ash");
     }
 
     private Node call_or_atom(){

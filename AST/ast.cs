@@ -53,6 +53,12 @@ public class LetNode : Node {
     }
 }
 
+public class ImportNode : Node {
+    public string Path {get;}
+
+    public ImportNode(string path) => Path = path;
+}
+
 public class ProgramNode : Node {
     public List<Node> Stats {get;}
     public ProgramNode(List<Node> stats) => Stats = stats;

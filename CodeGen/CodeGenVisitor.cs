@@ -3,25 +3,54 @@ using System.Collections.Generic;
 using System.Reflection.Emit;
 using ASharp.Compiler.AST;
 using ASharp.Compiler.Lexere;
+using ASharp.Compiler.Parsing;
 
 namespace ASharp.Compiler.Codegen;
 public class CodeGenVisitor
 {
     private readonly ILCompiler _compiler;
     private readonly Dictionary<string, LocalBuilder> _variables;
+    private string _curPath;
 
-    public CodeGenVisitor(ILCompiler compiler, Dictionary<string, LocalBuilder>? variables = null)
+    public CodeGenVisitor(ILCompiler compiler, string curPath, Dictionary<string, LocalBuilder>? variables = null)
     {
         _compiler = compiler;
         _variables = variables ?? new Dictionary<string, LocalBuilder>();
+        _curPath = curPath;
     }
 
     public void Visit(Node node)
     {
         switch (node)
         {
-            case ProgramNode prog: foreach(var stmt in prog.Stats) Visit(stmt); break;
+            case ProgramNode prog:
+                for(int i = 0; i<prog.Stats.Count; i++) {
+                    Visit(prog.Stats[i]);
+
+                    if(i<prog.Stats.Count - 1){
+                        _compiler.IL.Emit(OpCodes.Pop);
+                    }
+                }
+                break;
             case LetNode let: emit_let(let.Name, let.Value); break;
+            case ImportNode imp:
+                string currentDir = Path.GetDirectoryName(_curPath)!;
+
+                string foundPath = Path.Combine(currentDir, imp.Path);
+                if (File.Exists(foundPath)){
+                    string prevPath = _curPath;
+                    _curPath = foundPath;
+
+                    string subSource = File.ReadAllText(foundPath);
+                    var lexer = new Lexer(subSource);
+                    var parser = new Parser(lexer.GenerateTokens());
+                    this.Visit(parser.parse());
+
+                    _curPath = prevPath;
+                } else {
+                    throw new Exception(($"FilePath Error: Could not '{imp.Path}' at {foundPath}"));
+                }
+                break;
             case NumberNode n:
                 _compiler.IL.Emit(OpCodes.Ldc_R8, n.Value);
                 break;
@@ -102,6 +131,7 @@ public class CodeGenVisitor
         }
 
         _compiler.IL.Emit(OpCodes.Stloc, local);
+        _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
 
     void emit_var(string name){
