@@ -103,9 +103,15 @@ public class Parser{
             if(Current.Type == TokenType.LPAR){
                 advance();
                 var args = new List<Node>();
-                while(Current.Type != TokenType.RPAR){
-                    args.Add(parse_expr());
-                    advance();
+                if(Current.Type != TokenType.RPAR){
+                    while(true){
+                        args.Add(parse_expr());
+                        if(Current.Type == TokenType.COMMA){
+                            advance();
+                        } else {
+                            break;
+                        }
+                    }
                 }
                 expect(TokenType.RPAR);
                 return new CallNode(name, args);
