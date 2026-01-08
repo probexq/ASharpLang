@@ -15,7 +15,7 @@ internal static class Program
         }
         if(args[0] == "--version" || args[0] == "-v"){
             var version = Assembly.GetExecutingAssembly().GetName().Version;
-            Console.WriteLine($"ashc v{version?.Major}.{version?.Minor}.{version?.Build}-dev");
+            Console.WriteLine($"ashc v{version?.Major}.{version?.Minor}.{version?.Build}");
             Console.WriteLine($"Target: .NET 10.0 CIL");
             return;
         }

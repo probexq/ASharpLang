@@ -9,12 +9,12 @@ public enum TokenType{
     PLUS, MINUS, MULT, DIV, POW, // +, -, *, /, ^ - Binary
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
     NOT, AND, OR, // !, &, -- - Logical 
-    MAX, MIN, // ++(), --() - Syntax Functions
+    MAX, MIN, // +#(), -#() - Syntax Functions
     COMMA, LPAR, RPAR, // , ( ) - syntax
     LET, // let - keywords
     LOG, // log() basic terminal functions
-    LAMBDA, EQ, IMPORT, // :: - Misc
-    EOF
+    LAMBDA, EQ, IMPORT, // ::, =, $mconst - Misc
+    EOF // End of file
 }
 
 public class Token{
@@ -27,7 +27,7 @@ public class Token{
         Type = type;
         Value = value;
         Line = line;
-        Column = Column;
+        Column = column;
     }
 
     public override string ToString() => $"Token({Type}, {Value})";
@@ -36,8 +36,8 @@ public class Token{
 public class Lexer {
     private readonly string _text;
     private int _pos;
-    private int _line;
-    private int _column;
+    private int _line = 1;
+    private int _column = 1;
     private char Current => _pos < _text.Length ? _text[_pos] : '\0';
     private char Next => _pos + 1 <_text.Length ? _text[_pos + 1]: '\0';
 
@@ -61,6 +61,8 @@ public class Lexer {
     public List<Token> GenerateTokens(){
         var tokens = new List<Token>();
         while(_pos < _text.Length){
+            int startCol = _column;
+            int startLine = _line;
             if(char.IsWhiteSpace(Current)){
                 SkipWhitespace();
             }
@@ -71,25 +73,25 @@ public class Lexer {
                 tokens.Add(Identifier());
             } else {
                 switch(Current) {
-                    case '+': 
-                        if(Next == '+'){
-                            tokens.Add(new Token(TokenType.MAX, "++", _line, _column));
+                    case '+':
+                        if(Next == '#'){
+                            tokens.Add(new Token(TokenType.MAX, "+#", startLine, startCol));
                             advance(); advance();
                         } else {
-                            tokens.Add(new Token(TokenType.PLUS, "+", _line, _column));
+                            tokens.Add(new Token(TokenType.PLUS, "+", startLine, startCol));
                             advance();
                         }
                         break;
-                    case '-':
-                        if(Next == '-'){
-                            tokens.Add(new Token(TokenType.MIN, "--", _line, _column));
+                    case '-': 
+                        if(Next == '#'){
+                            tokens.Add(new Token(TokenType.MIN, "-#", startLine, startCol));
                             advance(); advance();
                         } else {
-                            tokens.Add(new Token(TokenType.MINUS, "-", _line, _column));
+                            tokens.Add(new Token(TokenType.MINUS, "-", startLine, startCol));
                             advance();
                         }
                         break;
-                    case '*': tokens.Add(new Token(TokenType.MULT, "*", _line, _column)); advance(); break;
+                    case '*': tokens.Add(new Token(TokenType.MULT, "*", startLine, startCol)); advance(); break;
                     case '/': 
                         if(Next == '/'){
                             while(Next != '\n' && Next != '\0') advance();
@@ -99,32 +101,33 @@ public class Lexer {
                             while(!(Next == '*' && _text[_pos + 2] == '/')) advance();
                             advance(); advance();
                         } else {
-                            tokens.Add(new Token(TokenType.DIV, "/", _line, _column)); advance();
+                            tokens.Add(new Token(TokenType.DIV, "/", startLine, startCol)); advance();
                         } break;
-                    case '^': tokens.Add(new Token(TokenType.POW, "^", _line, _column)); advance(); break;
-                    case '_': tokens.Add(new Token(TokenType.SQRT, "_", _line, _column)); advance(); break;
-                    case '~': tokens.Add(new Token(TokenType.ROUND, "~", _line, _column)); advance(); break;
-                    case '|': tokens.Add(new Token(TokenType.ABS, "|", _line, _column)); advance(); break;
-                    case '!': tokens.Add(new Token(TokenType.NOT, "!", _line, _column)); advance(); break;
-                    case '&': tokens.Add(new Token(TokenType.AND, "&", _line, _column)); advance(); break;
-                    case ',': tokens.Add(new Token(TokenType.COMMA, ",", _line, _column)); advance(); break;
+                    case '^': tokens.Add(new Token(TokenType.POW, "^", startLine, startCol)); advance(); break;
+                    case '_': tokens.Add(new Token(TokenType.SQRT, "_", startLine, startCol)); advance(); break;
+                    case '~': tokens.Add(new Token(TokenType.ROUND, "~", startLine, startCol)); advance(); break;
+                    case '|': tokens.Add(new Token(TokenType.ABS, "|", startLine, startCol)); advance(); break;
+                    case '!': tokens.Add(new Token(TokenType.NOT, "!", startLine, startCol)); advance(); break;
+                    case '&': tokens.Add(new Token(TokenType.AND, "&", startLine, startCol)); advance(); break;
+                    case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); advance(); break;
                     case ':': if (_pos + 1 < _text.Length && _text[_pos + 1] == ':'){
-                        tokens.Add(new Token(TokenType.LAMBDA, "::", _line, _column));
+                        tokens.Add(new Token(TokenType.LAMBDA, "::", startLine, startCol));
                         advance(); advance();
                     } else continue;
                     break;
-                    case '=': tokens.Add(new Token(TokenType.EQ, "=", _line, _column)); advance(); break;
-                    case '$': tokens.Add(new Token(TokenType.IMPORT, "$", _line, _column)); advance(); break;
-                    case '(': tokens.Add(new Token(TokenType.LPAR, "(", _line, _column)); advance(); break;
-                    case ')': tokens.Add(new Token(TokenType.RPAR, ")", _line, _column)); advance(); break;
+                    case '=': tokens.Add(new Token(TokenType.EQ, "=", startLine, startCol)); advance(); break;
+                    case '$': tokens.Add(new Token(TokenType.IMPORT, "$", startLine, startCol)); advance(); break;
+                    case '(': tokens.Add(new Token(TokenType.LPAR, "(", startLine, startCol)); advance(); break;
+                    case ')': tokens.Add(new Token(TokenType.RPAR, ")", startLine, startCol)); advance(); break;
                     default: 
                         int errLine = _line;
                         int errCol = _column;
                         char errChar = Current;
 
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Unexpected character: '{Current}' at {errLine}:{errCol}");
+                        Console.WriteLine($"Unexpected character: '{Current}' at line {errLine}, column {errCol}");
                         Console.ResetColor();
+                        Environment.Exit(1);
                         break;
                 }
             }

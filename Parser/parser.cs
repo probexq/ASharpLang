@@ -19,7 +19,7 @@ public class Parser{
             advance();
             return tok;
         }
-        string message = string.IsNullOrEmpty(cmessage) ? $"Expected {type} but found {tok.Type}" : cmessage;
+        string message = string.IsNullOrEmpty(cmessage) ? $"Expected '{type}' but found '{tok.Type}'" : cmessage;
         ThrowError(message, tok);
         return tok;
     }
@@ -74,6 +74,12 @@ public class Parser{
 
     public Node parse_program(){
         var stats = new List<Node>();
+        if(_tokens[0].Type == TokenType.EOF) {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Warning: empty file");
+            Console.ResetColor();
+            Environment.Exit(0);
+        }
 
         while(Current.Type != TokenType.EOF){
             if(Current.Type == TokenType.IMPORT) stats.Add(parse_import());
@@ -88,7 +94,7 @@ public class Parser{
 
     public Node parse_let(){
         advance();
-        var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got {Current.Value}");
+        var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got '{Current.Value}'");
         expect(TokenType.EQ, $"Expected '=' for variable assignment.");
         var value = parse_expr();
         return new LetNode(nameToken.Value, value);
@@ -115,14 +121,14 @@ public class Parser{
         if(Current.Type == TokenType.MAX || Current.Type == TokenType.MIN || Current.Type == TokenType.LOG){
             string name = Current.Value;
             advance();
-            expect(TokenType.LPAR, $"Expected '(', but got {name}");
+            expect(TokenType.LPAR, $"Expected '(', but got '{name}'");
             var args = new List<Node>();
             while(Current.Type != TokenType.RPAR){
                 args.Add(parse_expr());
                 if(Current.Type == TokenType.COMMA){
                     advance();
                 } else if(Current.Type != TokenType.RPAR) {
-                    ThrowError("Missing a comma between function arguments.", Current);
+                    ThrowError("Missing a comma between function arguments", Current);
                 }
             }
             expect(TokenType.RPAR, "Didn't close '('");
@@ -132,7 +138,7 @@ public class Parser{
         if(Current.Type == TokenType.ABS){
             advance();
             Node expr = parse_expr();
-            expect(TokenType.ABS, "Opened but didn't close the modulus.");
+            expect(TokenType.ABS, "Opened, but didn't close the modulus");
             return new CallNode("ABS", new List<Node> {expr});
         }
 
@@ -142,7 +148,7 @@ public class Parser{
             expect(TokenType.RPAR, "Didn't close '('");
             return expr;
         }
-        ThrowError($"Unexpected: {Current.Value}", Current);
+        ThrowError($"Unexpected '{Current.Value}'", Current);
         return null!; 
     }
 

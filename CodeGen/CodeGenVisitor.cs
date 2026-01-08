@@ -10,13 +10,6 @@ namespace ASharp.Compiler.Codegen;
 public class CodeGenVisitor
 {
     private readonly ILCompiler _compiler;
-    private static readonly MethodInfo powDouble = typeof(Math).GetMethod("Pow")!;
-    private static readonly MethodInfo sqrtDouble = typeof(Math).GetMethod("Sqrt", new[] { typeof(double) })!;
-    private static readonly MethodInfo roundDouble = typeof(Math).GetMethod("Round", new[] { typeof(double) })!;
-    private static readonly MethodInfo MathMaxDouble = typeof(Math).GetMethod("Max", new[] { typeof(double), typeof(double) })!;
-    private static readonly MethodInfo MathMinDouble = typeof(Math).GetMethod("Min", new[] { typeof(double), typeof(double) })!;
-    private static readonly MethodInfo MathAbsDouble = typeof(Math).GetMethod("Abs", new[] { typeof(double) })!;
-    private static readonly MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
     private readonly Dictionary<string, LocalBuilder> _variables;
     private string _curPath;
     private static readonly Dictionary<string, Node> _astCache = new();
@@ -46,7 +39,7 @@ public class CodeGenVisitor
         string exePath = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
         if(File.Exists(exePath)) return File.ReadAllText(exePath);
 
-        ThrowError($"FilePath Error: Library/File {fileName} not found.");
+        ThrowError($"FilePath Error: Library/File '{fileName}' not found.");
         return "";
     }
 
@@ -97,7 +90,9 @@ public class CodeGenVisitor
                     case TokenType.MINUS: _compiler.IL.Emit(OpCodes.Sub); break;
                     case TokenType.MULT: _compiler.IL.Emit(OpCodes.Mul); break;
                     case TokenType.DIV: _compiler.IL.Emit(OpCodes.Div); break;
-                    case TokenType.POW: _compiler.IL.Emit(OpCodes.Call, powDouble); break;
+                    case TokenType.POW:
+                        MethodInfo powDouble = typeof(Math).GetMethod("Pow")!; 
+                        _compiler.IL.Emit(OpCodes.Call, powDouble); break;
                     default: throw new Exception($"Unsupported binary opperand: {b.Op}");
                 }
                 break;
@@ -107,27 +102,31 @@ public class CodeGenVisitor
                 switch (u.Op)
                 {
                     case TokenType.MINUS: _compiler.IL.Emit(OpCodes.Neg); break;
-                    case TokenType.SQRT: _compiler.IL.Emit(OpCodes.Call, sqrtDouble); break;
-                    case TokenType.ROUND: _compiler.IL.Emit(OpCodes.Call, roundDouble); break;
+                    case TokenType.SQRT:
+                        MethodInfo sqrtDouble = typeof(Math).GetMethod("Sqrt", new[] { typeof(double) })!;
+                        _compiler.IL.Emit(OpCodes.Call, sqrtDouble); break;
+                    case TokenType.ROUND:
+                        MethodInfo roundDouble = typeof(Math).GetMethod("Round", new[] { typeof(double) })!;
+                        _compiler.IL.Emit(OpCodes.Call, roundDouble); break;
                     default: throw new Exception($"Unsupported unary operrand {u.Op}");
                 }
                 break;
 
             case CallNode c:
-                if (c.FuncName == "MAX" || c.FuncName == "++")
+                if (c.FuncName == "MAX" || c.FuncName == "+#")
                 {
-                    if(c.Args.Count < 2) ThrowError($"++() method requires at least two arguments.");
-
+                    if(c.Args.Count < 2) ThrowError($"+#() method requires at least two arguments.");
+                    MethodInfo MathMaxDouble = typeof(Math).GetMethod("Max", new[] { typeof(double), typeof(double) })!;
                     Visit(c.Args[0]);
                     for (int i = 1; i < c.Args.Count; i++){
                         Visit(c.Args[i]);
                         _compiler.IL.Emit(OpCodes.Call, MathMaxDouble);
                     }
                 }
-                else if (c.FuncName == "MIN" || c.FuncName == "--")
+                else if (c.FuncName == "MIN" || c.FuncName == "-#")
                 {
-                    if(c.Args.Count < 2) ThrowError($"--() method requires at least two arguments.");
-
+                    if(c.Args.Count < 2) ThrowError($"-#() method requires at least two arguments.");
+                    MethodInfo MathMinDouble = typeof(Math).GetMethod("Min", new[] { typeof(double), typeof(double) })!;
                     Visit(c.Args[0]);
                     for (int i = 1; i < c.Args.Count; i++){
                         Visit(c.Args[i]);
@@ -137,10 +136,12 @@ public class CodeGenVisitor
                 else if (c.FuncName == "ABS")
                 {
                     Visit(c.Args[0]);
+                    MethodInfo MathAbsDouble = typeof(Math).GetMethod("Abs", new[] { typeof(double) })!;
                     _compiler.IL.Emit(OpCodes.Call, MathAbsDouble);
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
                     Visit(c.Args[0]);
+                    MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
                     _compiler.IL.Emit(OpCodes.Dup);
                     _compiler.IL.Emit(OpCodes.Call, printDouble);
                 }
@@ -149,7 +150,7 @@ public class CodeGenVisitor
                     throw new Exception($"Unknown function '{c.FuncName}'");
                 }
                 break;
-            default: throw new Exception($"Unknown AST node {node.GetType()}");
+            default: throw new Exception($"Unknown AST node '{node.GetType()}'");
         }
     }
     public void emit_let(string name, Node expr, bool leaveOnStack){
