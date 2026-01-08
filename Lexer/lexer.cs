@@ -94,12 +94,20 @@ public class Lexer {
                     case '*': tokens.Add(new Token(TokenType.MULT, "*", startLine, startCol)); advance(); break;
                     case '/': 
                         if(Next == '/'){
-                            while(Next != '\n' && Next != '\0') advance();
+                            advance(); advance();
+                            while(Current != '\n' && Current != '\0') advance();
+                            continue;
                         }
                         else if(Next == '*'){
-                            advance();
-                            while(!(Next == '*' && _text[_pos + 2] == '/')) advance();
-                            advance(); advance();
+                            advance();  advance();
+                            while(_pos < _text.Length){
+                                if(Current == '*' && Next == '/'){
+                                    advance(); advance();
+                                    break;
+                                }
+                                advance();
+                            }
+                            continue;
                         } else {
                             tokens.Add(new Token(TokenType.DIV, "/", startLine, startCol)); advance();
                         } break;
@@ -110,6 +118,7 @@ public class Lexer {
                     case '!': tokens.Add(new Token(TokenType.NOT, "!", startLine, startCol)); advance(); break;
                     case '&': tokens.Add(new Token(TokenType.AND, "&", startLine, startCol)); advance(); break;
                     case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); advance(); break;
+                    // lambdas for 0.3.0
                     case ':': if (_pos + 1 < _text.Length && _text[_pos + 1] == ':'){
                         tokens.Add(new Token(TokenType.LAMBDA, "::", startLine, startCol));
                         advance(); advance();
