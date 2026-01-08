@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
+//using System;
+//using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
-using ASharp.Compiler.AST;
-using ASharp.Compiler.Lexere;
-using ASharp.Compiler.Parsing;
+using sharpash.AST;
+using sharpash.Lexering;
+using sharpash.Parsing;
 
-namespace ASharp.Compiler.Codegen;
+namespace sharpash.Codegen;
 public class CodeGenVisitor
 {
     private readonly ILCompiler _compiler;
@@ -24,7 +24,7 @@ public class CodeGenVisitor
     private string get_libsource(string fileName){
         var assembly = Assembly.GetExecutingAssembly();
 
-        string resName = $"A#.Compiler.libs.{fileName}";
+        string resName = $"sharpash.libs.{fileName}";
 
         using (Stream stream = assembly.GetManifestResourceStream(resName)!){
             if (stream != null){

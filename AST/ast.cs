@@ -1,6 +1,6 @@
-using ASharp.Compiler.Lexere;
+using sharpash.Lexering;
 
-namespace ASharp.Compiler.AST;
+namespace sharpash.AST;
 
 public abstract class Node {}
 

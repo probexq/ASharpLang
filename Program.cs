@@ -1,9 +1,9 @@
 using System.Reflection;
-using ASharp.Compiler.Codegen;
-using ASharp.Compiler.Lexere;
-using ASharp.Compiler.Parsing;
+using sharpash.Codegen;
+using sharpash.Lexering;
+using sharpash.Parsing;
 
-namespace ASharp.Compiler;
+namespace sharpash;
 
 internal static class Program
 {

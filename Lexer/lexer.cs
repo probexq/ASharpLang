@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
+//using System;
+//using System.Collections.Generic;
+//using System.Globalization;
 
-namespace ASharp.Compiler.Lexere;
+namespace sharpash.Lexering;
 
 public enum TokenType{
     NUMBER, IDENT, // 3, x - Basic

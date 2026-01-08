@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
-using ASharp.Compiler.AST;
-using ASharp.Compiler.Lexere;
+//using System;
+//using System.Collections.Generic;
+using sharpash.AST;
+using sharpash.Lexering;
 
-namespace ASharp.Compiler.Parsing;
+namespace sharpash.Parsing;
 
 public class Parser{
     private readonly List<Token> _tokens;
