@@ -1,2 +1,2 @@
-`The gravity constant`
+//The gravity constant
 let PI = 3.14,

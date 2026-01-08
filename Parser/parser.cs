@@ -116,7 +116,6 @@ public class Parser{
             string name = Current.Value;
             advance();
             expect(TokenType.LPAR, $"Expected '(', but got {name}");
-            advance();
             var args = new List<Node>();
             while(Current.Type != TokenType.RPAR){
                 args.Add(parse_expr());
@@ -133,7 +132,7 @@ public class Parser{
         if(Current.Type == TokenType.ABS){
             advance();
             Node expr = parse_expr();
-            expect(TokenType.ABS);
+            expect(TokenType.ABS, "Opened but didn't close the modulus.");
             return new CallNode("ABS", new List<Node> {expr});
         }
 

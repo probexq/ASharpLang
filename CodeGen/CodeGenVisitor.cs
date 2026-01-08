@@ -10,9 +10,13 @@ namespace ASharp.Compiler.Codegen;
 public class CodeGenVisitor
 {
     private readonly ILCompiler _compiler;
-
+    private static readonly MethodInfo powDouble = typeof(Math).GetMethod("Pow")!;
+    private static readonly MethodInfo sqrtDouble = typeof(Math).GetMethod("Sqrt", new[] { typeof(double) })!;
+    private static readonly MethodInfo roundDouble = typeof(Math).GetMethod("Round", new[] { typeof(double) })!;
     private static readonly MethodInfo MathMaxDouble = typeof(Math).GetMethod("Max", new[] { typeof(double), typeof(double) })!;
     private static readonly MethodInfo MathMinDouble = typeof(Math).GetMethod("Min", new[] { typeof(double), typeof(double) })!;
+    private static readonly MethodInfo MathAbsDouble = typeof(Math).GetMethod("Abs", new[] { typeof(double) })!;
+    private static readonly MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
     private readonly Dictionary<string, LocalBuilder> _variables;
     private string _curPath;
     private static readonly Dictionary<string, Node> _astCache = new();
@@ -42,7 +46,8 @@ public class CodeGenVisitor
         string exePath = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
         if(File.Exists(exePath)) return File.ReadAllText(exePath);
 
-        throw new Exception($"FilePath Error: Library {fileName} not found.");
+        ThrowError($"FilePath Error: Library/File {fileName} not found.");
+        return "";
     }
 
     public void Visit(Node node)
@@ -92,10 +97,8 @@ public class CodeGenVisitor
                     case TokenType.MINUS: _compiler.IL.Emit(OpCodes.Sub); break;
                     case TokenType.MULT: _compiler.IL.Emit(OpCodes.Mul); break;
                     case TokenType.DIV: _compiler.IL.Emit(OpCodes.Div); break;
-                    case TokenType.POW:
-                        _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Pow")!, null);
-                        break;
-                    default: throw new Exception($"Unsupported binop {b.Op}");
+                    case TokenType.POW: _compiler.IL.Emit(OpCodes.Call, powDouble); break;
+                    default: throw new Exception($"Unsupported binary opperand: {b.Op}");
                 }
                 break;
 
@@ -104,20 +107,16 @@ public class CodeGenVisitor
                 switch (u.Op)
                 {
                     case TokenType.MINUS: _compiler.IL.Emit(OpCodes.Neg); break;
-                    case TokenType.SQRT:
-                        _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Sqrt")!, null);
-                        break;
-                    case TokenType.ROUND:
-                        _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Round", new[] { typeof(double) })!, null);
-                        break;
-                    default: throw new Exception($"Unsupported unary op {u.Op}");
+                    case TokenType.SQRT: _compiler.IL.Emit(OpCodes.Call, sqrtDouble); break;
+                    case TokenType.ROUND: _compiler.IL.Emit(OpCodes.Call, roundDouble); break;
+                    default: throw new Exception($"Unsupported unary operrand {u.Op}");
                 }
                 break;
 
             case CallNode c:
                 if (c.FuncName == "MAX" || c.FuncName == "++")
                 {
-                    if(c.Args.Count < 2) throw new Exception($"++() method requires at least two arguments.");
+                    if(c.Args.Count < 2) ThrowError($"++() method requires at least two arguments.");
 
                     Visit(c.Args[0]);
                     for (int i = 1; i < c.Args.Count; i++){
@@ -127,7 +126,7 @@ public class CodeGenVisitor
                 }
                 else if (c.FuncName == "MIN" || c.FuncName == "--")
                 {
-                    if(c.Args.Count < 2) throw new Exception($"--() method requires at least two arguments.");
+                    if(c.Args.Count < 2) ThrowError($"--() method requires at least two arguments.");
 
                     Visit(c.Args[0]);
                     for (int i = 1; i < c.Args.Count; i++){
@@ -138,21 +137,19 @@ public class CodeGenVisitor
                 else if (c.FuncName == "ABS")
                 {
                     Visit(c.Args[0]);
-                    _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Abs", new[] { typeof(double) })!, null);
+                    _compiler.IL.Emit(OpCodes.Call, MathAbsDouble);
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
                     Visit(c.Args[0]);
                     _compiler.IL.Emit(OpCodes.Dup);
-                    _compiler.IL.EmitCall(OpCodes.Call, typeof(Console).GetMethod("WriteLine", new Type[] {typeof(double)})!, null);
+                    _compiler.IL.Emit(OpCodes.Call, printDouble);
                 }
                 else
                 {
-                    throw new Exception($"Unknown function {c.FuncName}");
+                    throw new Exception($"Unknown function '{c.FuncName}'");
                 }
                 break;
-
-            default:
-                throw new Exception($"Unknown AST node {node.GetType()}");
+            default: throw new Exception($"Unknown AST node {node.GetType()}");
         }
     }
     public void emit_let(string name, Node expr, bool leaveOnStack){
@@ -165,9 +162,14 @@ public class CodeGenVisitor
         _compiler.IL.Emit(OpCodes.Stloc, local);
         if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
-
     void emit_var(string name){
-        if(!_variables.TryGetValue(name, out var local)) throw new Exception($"Undefined Variable '{name}'");
-        _compiler.IL.Emit(OpCodes.Ldloc, local); 
+        if(!_variables.TryGetValue(name, out var local)) ThrowError($"Variable '{name}' is not defined.");
+        _compiler.IL.Emit(OpCodes.Ldloc, local!);
+    }
+    private void ThrowError(string message){
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"{message}");
+        Console.ResetColor();
+        Environment.Exit(1);
     }
 }

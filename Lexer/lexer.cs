@@ -48,7 +48,7 @@ public class Lexer {
         if (Current == '\n'){
             _line++;
             _column = 1; 
-        } else if(Current != '\r') _column++;
+        } else _column++;
         }
     public char peek_char(int offset = 1) {
         if(_pos + offset >= _text.Length) return '\0';
@@ -122,7 +122,10 @@ public class Lexer {
                         int errCol = _column;
                         char errChar = Current;
 
-                        throw new Exception($"Unexpected character: '{Current}' at {errLine}:{errCol}");
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Unexpected character: '{Current}' at {errLine}:{errCol}");
+                        Console.ResetColor();
+                        break;
                 }
             }
         }
