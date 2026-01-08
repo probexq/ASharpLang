@@ -13,10 +13,14 @@ public class Parser{
     public Parser(List<Token> tokens) => _tokens = tokens;
 
     private void advance() => _pos++;
-    private Token expect(TokenType type){
-        if(Current.Type != type) throw new Exception($"expected {type}, got {Current.Type}");
+    private Token expect(TokenType type, string cmessage = ""){
         var tok = Current;
-        advance();
+        if(tok.Type == type){
+            advance();
+            return tok;
+        }
+        string message = string.IsNullOrEmpty(cmessage) ? $"Expected {type} but found {tok.Type}" : cmessage;
+        ThrowError(message, tok);
         return tok;
     }
 
@@ -76,7 +80,7 @@ public class Parser{
             else {
                 Node stmt = Current.Type == TokenType.LET ? parse_let() : parse_expr();
                 stats.Add(stmt);
-                expect(TokenType.COMMA);
+                expect(TokenType.COMMA, "Expected ',' at the end of the line.");
             }
         }
         return new ProgramNode(stats);
@@ -84,8 +88,8 @@ public class Parser{
 
     public Node parse_let(){
         advance();
-        var nameToken = expect(TokenType.IDENT);
-        expect(TokenType.EQ);
+        var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got {Current.Value}");
+        expect(TokenType.EQ, $"Expected '=' for variable assignment.");
         var value = parse_expr();
         return new LetNode(nameToken.Value, value);
     }
@@ -93,7 +97,7 @@ public class Parser{
     public Node parse_import(){
         advance();
         var pathToken = expect(TokenType.IDENT);
-        expect(TokenType.COMMA);
+        expect(TokenType.COMMA, "Expected ',' at the of the line.");
         return new ImportNode(pathToken.Value + ".ash");
     }
 
@@ -103,27 +107,29 @@ public class Parser{
             advance();
             return new NumberNode(val);
         }
-        if(Current.Type == TokenType.IDENT || Current.Type == TokenType.MAX || Current.Type == TokenType.MIN || Current.Type == TokenType.LOG){
+        if(Current.Type == TokenType.IDENT){
             string name = Current.Value;
             advance();
-            if(Current.Type == TokenType.LPAR){
-                advance();
-                var args = new List<Node>();
-                if(Current.Type != TokenType.RPAR){
-                    while(true){
-                        args.Add(parse_expr());
-                        if(Current.Type == TokenType.COMMA){
-                            advance();
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                expect(TokenType.RPAR);
-                return new CallNode(name, args);
-            }
             return new VarNode(name);
         }
+        if(Current.Type == TokenType.MAX || Current.Type == TokenType.MIN || Current.Type == TokenType.LOG){
+            string name = Current.Value;
+            advance();
+            expect(TokenType.LPAR, $"Expected '(', but got {name}");
+            advance();
+            var args = new List<Node>();
+            while(Current.Type != TokenType.RPAR){
+                args.Add(parse_expr());
+                if(Current.Type == TokenType.COMMA){
+                    advance();
+                } else if(Current.Type != TokenType.RPAR) {
+                    ThrowError("Missing a comma between function arguments.", Current);
+                }
+            }
+            expect(TokenType.RPAR, "Didn't close '('");
+            return new CallNode(name, args);
+        }
+        
         if(Current.Type == TokenType.ABS){
             advance();
             Node expr = parse_expr();
@@ -134,9 +140,17 @@ public class Parser{
         if(Current.Type == TokenType.LPAR){
             advance();
             Node expr = parse_expr();
-            expect(TokenType.RPAR);
+            expect(TokenType.RPAR, "Didn't close '('");
             return expr;
         }
-        throw new Exception($"Unexpected token: {Current.Type}");
+        ThrowError($"Unexpected: {Current.Value}", Current);
+        return null!; 
+    }
+
+    private void ThrowError(string message, Token token){
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"{message} at line {token.Line}, column {token.Column}");
+        Console.ResetColor();
+        Environment.Exit(1);
     }
 }

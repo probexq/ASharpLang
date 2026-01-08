@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using ASharp.Compiler.AST;
 using ASharp.Compiler.Lexere;
@@ -9,8 +10,12 @@ namespace ASharp.Compiler.Codegen;
 public class CodeGenVisitor
 {
     private readonly ILCompiler _compiler;
+
+    private static readonly MethodInfo MathMaxDouble = typeof(Math).GetMethod("Max", new[] { typeof(double), typeof(double) })!;
+    private static readonly MethodInfo MathMinDouble = typeof(Math).GetMethod("Min", new[] { typeof(double), typeof(double) })!;
     private readonly Dictionary<string, LocalBuilder> _variables;
     private string _curPath;
+    private static readonly Dictionary<string, Node> _astCache = new();
 
     public CodeGenVisitor(ILCompiler compiler, string curPath, Dictionary<string, LocalBuilder>? variables = null)
     {
@@ -19,37 +24,56 @@ public class CodeGenVisitor
         _curPath = curPath;
     }
 
+    private string get_libsource(string fileName){
+        var assembly = Assembly.GetExecutingAssembly();
+
+        string resName = $"A#.Compiler.libs.{fileName}";
+
+        using (Stream stream = assembly.GetManifestResourceStream(resName)!){
+            if (stream != null){
+                using(StreamReader reader = new StreamReader(stream)){
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+        string localPath = Path.Combine(Path.GetDirectoryName(_curPath) ?? "", fileName);
+        if(File.Exists(localPath)) return File.ReadAllText(localPath);
+
+        string exePath = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
+        if(File.Exists(exePath)) return File.ReadAllText(exePath);
+
+        throw new Exception($"FilePath Error: Library {fileName} not found.");
+    }
+
     public void Visit(Node node)
     {
         switch (node)
         {
             case ProgramNode prog:
                 for(int i = 0; i<prog.Stats.Count; i++) {
-                    Visit(prog.Stats[i]);
+                    var curStat = prog.Stats[i];
+                    bool isLast = (i == prog.Stats.Count - 1);
 
-                    if(i<prog.Stats.Count - 1){
-                        _compiler.IL.Emit(OpCodes.Pop);
+                    if(curStat is LetNode let){
+                        emit_let(let.Name, let.Value, leaveOnStack: isLast);
+                    } else {
+                        Visit(curStat);
+                        if(!isLast){
+                            _compiler.IL.Emit(OpCodes.Pop);
+                        }
                     }
                 }
                 break;
-            case LetNode let: emit_let(let.Name, let.Value); break;
             case ImportNode imp:
-                string currentDir = Path.GetDirectoryName(_curPath)!;
+                string fileName = imp.Path;
 
-                string foundPath = Path.Combine(currentDir, imp.Path);
-                if (File.Exists(foundPath)){
-                    string prevPath = _curPath;
-                    _curPath = foundPath;
-
-                    string subSource = File.ReadAllText(foundPath);
+                if(!_astCache.TryGetValue(fileName, out var cachedNode)){
+                    string subSource = get_libsource(fileName);
                     var lexer = new Lexer(subSource);
                     var parser = new Parser(lexer.GenerateTokens());
-                    this.Visit(parser.parse());
-
-                    _curPath = prevPath;
-                } else {
-                    throw new Exception(($"FilePath Error: Could not '{imp.Path}' at {foundPath}"));
-                }
+                    cachedNode = parser.parse();
+                    _astCache[fileName] = cachedNode;
+                } this.Visit(cachedNode);
                 break;
             case NumberNode n:
                 _compiler.IL.Emit(OpCodes.Ldc_R8, n.Value);
@@ -93,15 +117,23 @@ public class CodeGenVisitor
             case CallNode c:
                 if (c.FuncName == "MAX" || c.FuncName == "++")
                 {
-                    foreach (var arg in c.Args)
-                        Visit(arg);
-                    _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Max", new[] { typeof(double), typeof(double) })!, null);
+                    if(c.Args.Count < 2) throw new Exception($"++() method requires at least two arguments.");
+
+                    Visit(c.Args[0]);
+                    for (int i = 1; i < c.Args.Count; i++){
+                        Visit(c.Args[i]);
+                        _compiler.IL.Emit(OpCodes.Call, MathMaxDouble);
+                    }
                 }
                 else if (c.FuncName == "MIN" || c.FuncName == "--")
                 {
-                    foreach (var arg in c.Args)
-                        Visit(arg);
-                    _compiler.IL.EmitCall(OpCodes.Call, typeof(Math).GetMethod("Min", new[] { typeof(double), typeof(double) })!, null);
+                    if(c.Args.Count < 2) throw new Exception($"--() method requires at least two arguments.");
+
+                    Visit(c.Args[0]);
+                    for (int i = 1; i < c.Args.Count; i++){
+                        Visit(c.Args[i]);
+                        _compiler.IL.Emit(OpCodes.Call, MathMinDouble);
+                    }
                 }
                 else if (c.FuncName == "ABS")
                 {
@@ -123,7 +155,7 @@ public class CodeGenVisitor
                 throw new Exception($"Unknown AST node {node.GetType()}");
         }
     }
-    public void emit_let(string name, Node expr){
+    public void emit_let(string name, Node expr, bool leaveOnStack){
         Visit(expr);
         if(!_variables.TryGetValue(name, out var local)){
             local = _compiler.IL.DeclareLocal(typeof(double));
@@ -131,7 +163,7 @@ public class CodeGenVisitor
         }
 
         _compiler.IL.Emit(OpCodes.Stloc, local);
-        _compiler.IL.Emit(OpCodes.Ldloc, local);
+        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
 
     void emit_var(string name){

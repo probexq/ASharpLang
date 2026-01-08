@@ -1,3 +1,4 @@
+using System.Reflection;
 using ASharp.Compiler.Codegen;
 using ASharp.Compiler.Lexere;
 using ASharp.Compiler.Parsing;
@@ -8,8 +9,14 @@ internal static class Program
 {
     static void Main(string[] args)
     {
-        if(args.Length == 0){
+        if(args.Length < 1){
             Console.WriteLine("Usage: ash <file.ash>");
+            return;
+        }
+        if(args[0] == "--version" || args[0] == "-v"){
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            Console.WriteLine($"ashc v{version?.Major}.{version?.Minor}.{version?.Build}");
+            Console.WriteLine($"Target: .NET 10.0 CIL");
             return;
         }
         
