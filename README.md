@@ -40,7 +40,7 @@ let result = _(+#(a, b)),
 ## 4 Roadmap
 
 * **0.1.0+(Done)** log() for terminal output, basic syntax(normal +-*/^, let for variable declaration, |a| for Math.Abs (Modulus), $ for importing/including etc.)
-* **0.2.0+** Guard-based logic(new condition type), constants, optimizations and small fixes.
+* **0.2.0+** Guard-based logic(new condition type) -, constants +, optimizations and small fixes ~.
 * **0.3.0+** Lambdas, ? Syntax for Math.Random, optimizations and fixes.
 * **0.4.0+** logf() for string support, elog() for Exceptions, !! syntax for error-catching.
 
