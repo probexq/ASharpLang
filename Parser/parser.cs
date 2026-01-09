@@ -98,13 +98,19 @@ public class Parser{
         TokenType type = Current.Type;
         advance();
         var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got '{Current.Value}'");
-        if(!_variables.TryGetValue(nameToken.Value, out var v)){
+        if(type == TokenType.LET) {
+            if(!_variables.TryGetValue(nameToken.Value, out var v)){
+                expect(TokenType.EQ, $"Expected '=' for variable assignment.");
+                var value = parse_expr();
+                v = new VarNode(nameToken.Value, value);
+                _variables[nameToken.Value] = v;
+                return new TypeNode(type, nameToken.Value, value);
+            } else ThrowError($"Already defined variable '{v.Name}'", nameToken); return null!;
+        } else {
             expect(TokenType.EQ, $"Expected '=' for variable assignment.");
             var value = parse_expr();
-            v = new VarNode(nameToken.Value, value);
-            _variables[nameToken.Value] = v;
-        } else ThrowError($"Already defined variable '{v.Name}'", nameToken);
-        return new TypeNode(type, v.Name, v.Value);
+            return new TypeNode(type, nameToken.Value, value);
+        }
     }
 
     public Node parse_import(){
@@ -127,7 +133,7 @@ public class Parser{
             if(Current.Type == TokenType.EQ){
                 advance();
                 if(!_variables.TryGetValue(name, out var value)){
-                    ThrowError($"Variable '{name}' is not defined", token);
+                    ThrowError($"Variable '{name}' is not defined or is a constant", token);
                     return null!;
                 }
                 var val = parse_expr();

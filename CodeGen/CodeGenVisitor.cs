@@ -107,7 +107,7 @@ public class CodeGenVisitor
                 break;
 
             case VarNode v:
-                if(v.Value != null) {emit_var(v.Name, v.Value); _compiler.IL.Emit(OpCodes.Pop);}
+                if(v.Value != null) emit_var(v.Name, v.Value);
                 else emit_var(v.Name);
                 break;
 
@@ -208,7 +208,7 @@ public class CodeGenVisitor
     void emit_var(string name, Node value = null!){
         if(!_variables.TryGetValue(name, out var local)) ThrowError($"Variable '{name}' is not defined.");
         if(value != null) {Visit(value); _compiler.IL.Emit(OpCodes.Stloc, local!);}
-        else _compiler.IL.Emit(OpCodes.Ldloc, local!);
+        _compiler.IL.Emit(OpCodes.Ldloc, local!);
     }
     private void ThrowError(string message){
         Console.ForegroundColor = ConsoleColor.Red;
