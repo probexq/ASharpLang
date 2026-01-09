@@ -8,12 +8,12 @@ namespace sharpash.Parsing;
 public class Parser{
     private readonly List<Token> _tokens;
     private int _pos;
-    private Dictionary<string, VarNode> _variables;
+    private Dictionary<string, TypeNode> _variables;
     private Token Current => _pos < _tokens.Count ? _tokens[_pos] : null!;
 
-    public Parser(List<Token> tokens, Dictionary<string, VarNode> variables = null!) { 
+    public Parser(List<Token> tokens, Dictionary<string, TypeNode> variables = null!) { 
         _tokens = tokens;
-        _variables = variables ?? new Dictionary<string, VarNode>();
+        _variables = variables ?? new Dictionary<string, TypeNode>();
     }
 
     private void advance() => _pos++;
@@ -30,7 +30,19 @@ public class Parser{
 
     public Node parse() => parse_program();
 
-    private Node parse_expr(){
+    private Node logic(){
+        Node node = addition();
+
+        while(Current.Type == TokenType.LESS || Current.Type == TokenType.MORE){
+            TokenType op = Current.Type;
+            advance();
+            Node right = addition();
+            node = new BinOpNode(node, op, right);
+        }
+        return node;
+    }
+
+    private Node addition(){
         Node node = term();
 
         while(Current.Type == TokenType.PLUS || Current.Type == TokenType.MINUS){
@@ -58,8 +70,8 @@ public class Parser{
         if(Current.Type == TokenType.PLUS || Current.Type == TokenType.MINUS || Current.Type == TokenType.SQRT || Current.Type == TokenType.ROUND || Current.Type == TokenType.NOT){
             TokenType op = Current.Type;
             advance();
-            Node parse_expr = factor();
-            return new UnOpNode(op, parse_expr);
+            Node logic = factor();
+            return new UnOpNode(op, logic);
         }
         return power();
     }
@@ -87,7 +99,7 @@ public class Parser{
 
         while(Current.Type != TokenType.EOF){
             if(Current.Type == TokenType.IMPORT) stats.Add(parse_import());
-            Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST ? parse_new_type() : parse_expr();
+            Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND ? parse_new_type() : logic();
             stats.Add(stmt);
             expect(TokenType.COMMA, "Expected ',' at the end of the line.");
         }
@@ -98,17 +110,17 @@ public class Parser{
         TokenType type = Current.Type;
         advance();
         var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got '{Current.Value}'");
-        if(type == TokenType.LET) {
+        if(type == TokenType.LET || type == TokenType.COND) {
             if(!_variables.TryGetValue(nameToken.Value, out var v)){
                 expect(TokenType.EQ, $"Expected '=' for variable assignment.");
-                var value = parse_expr();
-                v = new VarNode(nameToken.Value, value);
+                var value = logic();
+                v = new TypeNode(type, nameToken.Value, value);
                 _variables[nameToken.Value] = v;
                 return new TypeNode(type, nameToken.Value, value);
             } else ThrowError($"Already defined variable '{v.Name}'", nameToken); return null!;
         } else {
             expect(TokenType.EQ, $"Expected '=' for variable assignment.");
-            var value = parse_expr();
+            var value = logic();
             return new TypeNode(type, nameToken.Value, value);
         }
     }
@@ -136,9 +148,25 @@ public class Parser{
                     ThrowError($"Variable '{name}' is not defined or is a constant", token);
                     return null!;
                 }
-                var val = parse_expr();
-                _variables[name] = new VarNode(name, val);
+                var val = logic();
+                _variables[name] = new TypeNode(value.Type, name, val);
                 return new VarNode(name, val);
+            } else if (Current.Type == TokenType.GATE){
+                advance();
+                if(!_variables.TryGetValue(name, out var value)){
+                    ThrowError($"Variable '{name}' is not defined or is a constant", token);
+                    return null!;
+                }
+                if(value.Type == TokenType.COND){
+                    while(Current.Type != TokenType.GATE){
+                        logic();
+                        if(Current.Type == TokenType.COMMA) advance();
+                        else if(Current.Type != TokenType.GATE) ThrowError("Missing comma", Current);
+                    }
+                    expect(TokenType.GATE, "Found '\\' that was opened but not closed.");
+                    return new VarNode(name, value);
+                }
+                ThrowError("Unexpected '\\'", token);
             }
             return new VarNode(name);
         }
@@ -148,7 +176,7 @@ public class Parser{
             expect(TokenType.LPAR, $"Expected '(', but got '{name}'");
             var args = new List<Node>();
             while(Current.Type != TokenType.RPAR){
-                args.Add(parse_expr());
+                args.Add(logic());
                 if(Current.Type == TokenType.COMMA){
                     advance();
                 } else if(Current.Type != TokenType.RPAR) {
@@ -161,14 +189,14 @@ public class Parser{
         
         if(Current.Type == TokenType.ABS){
             advance();
-            Node expr = parse_expr();
+            Node expr = logic();
             expect(TokenType.ABS, "Opened, but didn't close the modulus");
             return new CallNode("ABS", new List<Node> {expr});
         }
 
         if(Current.Type == TokenType.LPAR){
             advance();
-            Node expr = parse_expr();
+            Node expr = logic();
             expect(TokenType.RPAR, "Didn't close '('");
             return expr;
         }

@@ -8,10 +8,10 @@ public enum TokenType{
     NUMBER, IDENT, // 3, x - Basic
     PLUS, MINUS, MULT, DIV, POW, // +, -, *, /, ^ - Binary
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
-    NOT, AND, OR, // !, &, -- - Logical 
+    NOT, AND, OR, MORE, LESS, // !, &, >, <, - Logical 
     MAX, MIN, // +#(), -#() - Syntax Functions
-    COMMA, LPAR, RPAR, // , ( ) - syntax 
-    LET, CONST, // let, const - keywords
+    COMMA, LPAR, RPAR, GATE, // ',' '(' ')' '\' - syntax 
+    LET, CONST, COND, // let, const - keywords
     LOG, // log() basic terminal functions
     LAMBDA, EQ, IMPORT, // ::, =, $mconst - Misc
     EOF // End of file
@@ -117,17 +117,20 @@ public class Lexer {
                     case '|': tokens.Add(new Token(TokenType.ABS, "|", startLine, startCol)); advance(); break;
                     case '!': tokens.Add(new Token(TokenType.NOT, "!", startLine, startCol)); advance(); break;
                     case '&': tokens.Add(new Token(TokenType.AND, "&", startLine, startCol)); advance(); break;
+                    case '>': tokens.Add(new Token(TokenType.MORE, ">", startLine, startCol)); advance(); break;
+                    case '<': tokens.Add(new Token(TokenType.LESS, "<", startLine, startCol)); advance(); break;
                     case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); advance(); break;
-                    // lambdas for 0.3.0
+                    /* lambdas for 0.3.0
                     case ':': if (_pos + 1 < _text.Length && _text[_pos + 1] == ':'){
                         tokens.Add(new Token(TokenType.LAMBDA, "::", startLine, startCol));
                         advance(); advance();
                     } else continue;
-                    break;
+                    break;*/
                     case '=': tokens.Add(new Token(TokenType.EQ, "=", startLine, startCol)); advance(); break;
                     case '$': tokens.Add(new Token(TokenType.IMPORT, "$", startLine, startCol)); advance(); break;
                     case '(': tokens.Add(new Token(TokenType.LPAR, "(", startLine, startCol)); advance(); break;
                     case ')': tokens.Add(new Token(TokenType.RPAR, ")", startLine, startCol)); advance(); break;
+                    case '\\': tokens.Add(new Token(TokenType.GATE, "\\", startLine, startCol)); advance(); break;
                     default: 
                         int errLine = _line;
                         int errCol = _column;
@@ -171,6 +174,7 @@ public class Lexer {
         var value = _text.Substring(start, _pos - start);
         if(value == "let") return new Token(TokenType.LET, value, startLine, startColumn);
         if(value == "const") return new Token(TokenType.CONST, value, startLine, startColumn);
+        if(value == "condition") return new Token(TokenType.COND, value, startLine, startColumn);
         if(value == "log") return new Token(TokenType.LOG, value, startLine, startColumn);
         return new Token(TokenType.IDENT, value, startLine, startColumn);
     }

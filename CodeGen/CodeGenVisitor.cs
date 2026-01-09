@@ -21,31 +21,7 @@ public class CodeGenVisitor
         _curPath = curPath;
     }
 
-    /*private double get_value(Node node){
-        return node switch{
-            NumberNode num => num.Value,
-            VarNode v => get_value(v.Value),
-            BinOpNode b => b.Op switch {
-                TokenType.PLUS => get_value(b.Left) + get_value(b.Right),
-                TokenType.MINUS => get_value(b.Left) - get_value(b.Right),
-                TokenType.MULT => get_value(b.Left) * get_value(b.Right),
-                TokenType.DIV => get_value(b.Left) / get_value(b.Right),
-                TokenType.POW => Math.Pow(get_value(b.Left), get_value(b.Right)),
-                _ => ThrowError("Unsupported binary operrand"),
-            },
-            UnOpNode u => u.Op switch {
-                TokenType.MINUS => -get_value(u.Expr),
-                TokenType.SQRT => Math.Sqrt(get_value(u.Expr)),
-                TokenType.ROUND => Math.Round(get_value(u.Expr)),
-                _ => ThrowError("Unsupported unary operrand"),
-            },
-            CallNode c => c.FuncName switch {
-                "MAX" => get_value(c.Args[0]),
-                _ => ThrowError("Unsupported callable"),
-            },
-            _ => ThrowError("Node is not a constant"),
-        };
-    }*/
+    private bool isLast;
 
     private string get_libsource(string fileName){
         var assembly = Assembly.GetExecutingAssembly();
@@ -76,21 +52,20 @@ public class CodeGenVisitor
             case ProgramNode prog:
                 for(int i = 0; i<prog.Stats.Count; i++) {
                     var curStat = prog.Stats[i];
-                    bool isLast = (i == prog.Stats.Count - 1);
-
-                    if(curStat is TypeNode let){
-                        switch (let.Type){
-                            case TokenType.LET: emit_let(let.Name, let.Var, leaveOnStack: isLast); break;
-                            case TokenType.CONST: emit_const(let.Name, let.Var, leaveOnStack: isLast); break;
-                        }
-                    } else {
-                        Visit(curStat);
-                        if(!isLast){
-                            _compiler.IL.Emit(OpCodes.Pop);
-                        }
+                    isLast = (i == prog.Stats.Count - 1);; 
+                    Visit(curStat);
+                    if(!isLast){
+                        _compiler.IL.Emit(OpCodes.Pop);
                     }
                 }
                 break;
+            case TypeNode t:
+                switch (t.Type){
+                    case TokenType.LET: emit_let(t.Name, t.Var, leaveOnStack: isLast); break;
+                    case TokenType.CONST: emit_const(t.Name, t.Var, leaveOnStack: isLast); break;
+                    case TokenType.COND: emit_condition(t.Name, t.Var, leaveOnStack: isLast); break;
+                } break;
+                
             case ImportNode imp:
                 string fileName = imp.Path;
 
@@ -116,6 +91,8 @@ public class CodeGenVisitor
                 Visit(b.Right);
                 switch (b.Op)
                 {
+                    case TokenType.MORE: _compiler.IL.Emit(OpCodes.Cgt); _compiler.IL.Emit(OpCodes.Conv_R8); break;
+                    case TokenType.LESS: _compiler.IL.Emit(OpCodes.Clt); _compiler.IL.Emit(OpCodes.Conv_R8); break;
                     case TokenType.PLUS: _compiler.IL.Emit(OpCodes.Add); break;
                     case TokenType.MINUS: _compiler.IL.Emit(OpCodes.Sub); break;
                     case TokenType.MULT: _compiler.IL.Emit(OpCodes.Mul); break;
@@ -172,7 +149,7 @@ public class CodeGenVisitor
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
                     Visit(c.Args[0]);
                     MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
-                    _compiler.IL.Emit(OpCodes.Dup);
+                    //_compiler.IL.Emit(OpCodes.Dup);
                     _compiler.IL.Emit(OpCodes.Call, printDouble);
                 }
                 else
@@ -202,6 +179,23 @@ public class CodeGenVisitor
 
         var local = _compiler.IL.DeclareLocal(typeof(double));
         _variables[name] = local;
+        _compiler.IL.Emit(OpCodes.Stloc, local);
+        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
+    }
+    public void emit_condition(string name, Node expr, bool leaveOnStack){
+        Visit(expr);
+
+        _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0);
+        _compiler.IL.Emit(OpCodes.Ceq);
+        _compiler.IL.Emit(OpCodes.Ldc_I4_0);
+        _compiler.IL.Emit(OpCodes.Ceq);
+        _compiler.IL.Emit(OpCodes.Conv_R8);
+
+        if(!_variables.TryGetValue(name, out var local)){
+            local = _compiler.IL.DeclareLocal(typeof(double));
+            _variables[name] = local;
+        }
+
         _compiler.IL.Emit(OpCodes.Stloc, local);
         if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
