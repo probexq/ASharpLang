@@ -8,9 +8,13 @@ namespace sharpash.Parsing;
 public class Parser{
     private readonly List<Token> _tokens;
     private int _pos;
+    private Dictionary<string, VarNode> _variables;
     private Token Current => _pos < _tokens.Count ? _tokens[_pos] : null!;
 
-    public Parser(List<Token> tokens) => _tokens = tokens;
+    public Parser(List<Token> tokens, Dictionary<string, VarNode> variables = null!) { 
+        _tokens = tokens;
+        _variables = variables ?? new Dictionary<string, VarNode>();
+    }
 
     private void advance() => _pos++;
     private Token expect(TokenType type, string cmessage = ""){
@@ -83,21 +87,24 @@ public class Parser{
 
         while(Current.Type != TokenType.EOF){
             if(Current.Type == TokenType.IMPORT) stats.Add(parse_import());
-            else {
-                Node stmt = Current.Type == TokenType.LET ? parse_let() : parse_expr();
-                stats.Add(stmt);
-                expect(TokenType.COMMA, "Expected ',' at the end of the line.");
-            }
+            Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST ? parse_new_type() : parse_expr();
+            stats.Add(stmt);
+            expect(TokenType.COMMA, "Expected ',' at the end of the line.");
         }
         return new ProgramNode(stats);
     }
 
-    public Node parse_let(){
+    public Node parse_new_type(){
+        TokenType type = Current.Type;
         advance();
         var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got '{Current.Value}'");
-        expect(TokenType.EQ, $"Expected '=' for variable assignment.");
-        var value = parse_expr();
-        return new LetNode(nameToken.Value, value);
+        if(!_variables.TryGetValue(nameToken.Value, out var v)){
+            expect(TokenType.EQ, $"Expected '=' for variable assignment.");
+            var value = parse_expr();
+            v = new VarNode(nameToken.Value, value);
+            _variables[nameToken.Value] = v;
+        } else ThrowError($"Already defined variable '{v.Name}'", nameToken);
+        return new TypeNode(type, v.Name, v.Value);
     }
 
     public Node parse_import(){
@@ -115,7 +122,18 @@ public class Parser{
         }
         if(Current.Type == TokenType.IDENT){
             string name = Current.Value;
+            var token = Current;
             advance();
+            if(Current.Type == TokenType.EQ){
+                advance();
+                if(!_variables.TryGetValue(name, out var value)){
+                    ThrowError($"Variable '{name}' is not defined", token);
+                    return null!;
+                }
+                var val = parse_expr();
+                _variables[name] = new VarNode(name, val);
+                return new VarNode(name, val);
+            }
             return new VarNode(name);
         }
         if(Current.Type == TokenType.MAX || Current.Type == TokenType.MIN || Current.Type == TokenType.LOG){

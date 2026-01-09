@@ -10,8 +10,8 @@ public enum TokenType{
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
     NOT, AND, OR, // !, &, -- - Logical 
     MAX, MIN, // +#(), -#() - Syntax Functions
-    COMMA, LPAR, RPAR, // , ( ) - syntax
-    LET, // let - keywords
+    COMMA, LPAR, RPAR, // , ( ) - syntax 
+    LET, CONST, // let, const - keywords
     LOG, // log() basic terminal functions
     LAMBDA, EQ, IMPORT, // ::, =, $mconst - Misc
     EOF // End of file
@@ -170,6 +170,7 @@ public class Lexer {
 
         var value = _text.Substring(start, _pos - start);
         if(value == "let") return new Token(TokenType.LET, value, startLine, startColumn);
+        if(value == "const") return new Token(TokenType.CONST, value, startLine, startColumn);
         if(value == "log") return new Token(TokenType.LOG, value, startLine, startColumn);
         return new Token(TokenType.IDENT, value, startLine, startColumn);
     }

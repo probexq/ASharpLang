@@ -21,6 +21,32 @@ public class CodeGenVisitor
         _curPath = curPath;
     }
 
+    /*private double get_value(Node node){
+        return node switch{
+            NumberNode num => num.Value,
+            VarNode v => get_value(v.Value),
+            BinOpNode b => b.Op switch {
+                TokenType.PLUS => get_value(b.Left) + get_value(b.Right),
+                TokenType.MINUS => get_value(b.Left) - get_value(b.Right),
+                TokenType.MULT => get_value(b.Left) * get_value(b.Right),
+                TokenType.DIV => get_value(b.Left) / get_value(b.Right),
+                TokenType.POW => Math.Pow(get_value(b.Left), get_value(b.Right)),
+                _ => ThrowError("Unsupported binary operrand"),
+            },
+            UnOpNode u => u.Op switch {
+                TokenType.MINUS => -get_value(u.Expr),
+                TokenType.SQRT => Math.Sqrt(get_value(u.Expr)),
+                TokenType.ROUND => Math.Round(get_value(u.Expr)),
+                _ => ThrowError("Unsupported unary operrand"),
+            },
+            CallNode c => c.FuncName switch {
+                "MAX" => get_value(c.Args[0]),
+                _ => ThrowError("Unsupported callable"),
+            },
+            _ => ThrowError("Node is not a constant"),
+        };
+    }*/
+
     private string get_libsource(string fileName){
         var assembly = Assembly.GetExecutingAssembly();
 
@@ -52,8 +78,11 @@ public class CodeGenVisitor
                     var curStat = prog.Stats[i];
                     bool isLast = (i == prog.Stats.Count - 1);
 
-                    if(curStat is LetNode let){
-                        emit_let(let.Name, let.Value, leaveOnStack: isLast);
+                    if(curStat is TypeNode let){
+                        switch (let.Type){
+                            case TokenType.LET: emit_let(let.Name, let.Var, leaveOnStack: isLast); break;
+                            case TokenType.CONST: emit_const(let.Name, let.Var, leaveOnStack: isLast); break;
+                        }
                     } else {
                         Visit(curStat);
                         if(!isLast){
@@ -78,7 +107,8 @@ public class CodeGenVisitor
                 break;
 
             case VarNode v:
-                emit_var(v.Name);
+                if(v.Value != null) {emit_var(v.Name, v.Value); _compiler.IL.Emit(OpCodes.Pop);}
+                else emit_var(v.Name);
                 break;
 
             case BinOpNode b:
@@ -163,14 +193,28 @@ public class CodeGenVisitor
         _compiler.IL.Emit(OpCodes.Stloc, local);
         if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
-    void emit_var(string name){
+    public void emit_const(string name, Node expr, bool leaveOnStack){
+        Visit(expr);
+
+        if(_variables.ContainsKey(name)){
+            ThrowError($"VariableError: Constant '{name}' is already defined");
+        }
+
+        var local = _compiler.IL.DeclareLocal(typeof(double));
+        _variables[name] = local;
+        _compiler.IL.Emit(OpCodes.Stloc, local);
+        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
+    }
+    void emit_var(string name, Node value = null!){
         if(!_variables.TryGetValue(name, out var local)) ThrowError($"Variable '{name}' is not defined.");
-        _compiler.IL.Emit(OpCodes.Ldloc, local!);
+        if(value != null) {Visit(value); _compiler.IL.Emit(OpCodes.Stloc, local!);}
+        else _compiler.IL.Emit(OpCodes.Ldloc, local!);
     }
     private void ThrowError(string message){
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"{message}");
         Console.ResetColor();
         Environment.Exit(1);
+        throw new Exception("");
     }
 }
