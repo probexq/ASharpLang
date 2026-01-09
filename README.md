@@ -5,6 +5,7 @@ The official repo for the A# language, supposed to be a hobby project developed 
 A# is an open-source modern math-first .NET programming language, aimed to make heavy math on the framework much easier.
 It's a pretty lightweight compared to Julia or even Python (for now at least).
 A# is statically typed and converts to CIL (Common Intermediate Language).
+Note: the language uses the .ash file extension.
 
 ## Why A#?
 
