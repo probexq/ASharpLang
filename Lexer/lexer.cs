@@ -48,7 +48,7 @@ public class Lexer {
         if (Current == '\n'){
             _line++;
             _column = 1; 
-        } else _column++;
+        } else if(Current != '\r') _column++;
         }
     public char peek_char(int offset = 1) {
         if(_pos + offset >= _text.Length) return '\0';

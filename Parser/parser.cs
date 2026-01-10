@@ -10,6 +10,7 @@ public class Parser{
     private int _pos;
     private Dictionary<string, TypeNode> _variables;
     private Token Current => _pos < _tokens.Count ? _tokens[_pos] : null!;
+    private Token Next => _pos + 1 < _tokens.Count ? _tokens[_pos + 1] : null!;
 
     public Parser(List<Token> tokens, Dictionary<string, TypeNode> variables = null!) { 
         _tokens = tokens;
@@ -99,6 +100,10 @@ public class Parser{
 
         while(Current.Type != TokenType.EOF){
             if(Current.Type == TokenType.IMPORT) stats.Add(parse_import());
+            if(Next.Type == TokenType.GATE){
+                stats.Add(parse_cond());
+                if(Current.Type == TokenType.EOF) break;
+            }
             Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND ? parse_new_type() : logic();
             stats.Add(stmt);
             expect(TokenType.COMMA, "Expected ',' at the end of the line.");
@@ -110,19 +115,13 @@ public class Parser{
         TokenType type = Current.Type;
         advance();
         var nameToken = expect(TokenType.IDENT, $"Expected a variable to assign, got '{Current.Value}'");
-        if(type == TokenType.LET || type == TokenType.COND) {
-            if(!_variables.TryGetValue(nameToken.Value, out var v)){
-                expect(TokenType.EQ, $"Expected '=' for variable assignment.");
-                var value = logic();
-                v = new TypeNode(type, nameToken.Value, value);
-                _variables[nameToken.Value] = v;
-                return new TypeNode(type, nameToken.Value, value);
-            } else ThrowError($"Already defined variable '{v.Name}'", nameToken); return null!;
-        } else {
+        if(!_variables.TryGetValue(nameToken.Value, out var v)){
             expect(TokenType.EQ, $"Expected '=' for variable assignment.");
             var value = logic();
+            v = new TypeNode(type, nameToken.Value, value);
+            _variables[nameToken.Value] = v;
             return new TypeNode(type, nameToken.Value, value);
-        }
+        } else ThrowError($"Already defined variable '{v.Name}'", nameToken); return null!;
     }
 
     public Node parse_import(){
@@ -130,6 +129,26 @@ public class Parser{
         var pathToken = expect(TokenType.IDENT);
         expect(TokenType.COMMA, "Expected ',' at the of the line.");
         return new ImportNode(pathToken.Value + ".ash");
+    }
+
+    public Node parse_cond(){
+        Node cond = logic();
+        Node condblock = parse_block();
+        return new LogicNode(cond, condblock);
+    }
+
+    private Node parse_block(){
+        expect(TokenType.GATE);
+        List<Node> stats = new List<Node>();
+
+        while(Current.Type != TokenType.GATE && Current.Type != TokenType.EOF){
+            Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND ? parse_new_type() : logic();
+            stats.Add(stmt);
+            expect(TokenType.COMMA, "Expected ',' at the end of the line.");
+        }
+
+        expect(TokenType.GATE);
+        return new ProgramNode(stats);
     }
 
     private Node call_or_atom(){
@@ -141,32 +160,17 @@ public class Parser{
         if(Current.Type == TokenType.IDENT){
             string name = Current.Value;
             var token = Current;
+            if(!_variables.TryGetValue(name, out var value)){
+                    ThrowError($"Variable '{name}' is not defined", token);
+                    return null!;
+            }
             advance();
             if(Current.Type == TokenType.EQ){
                 advance();
-                if(!_variables.TryGetValue(name, out var value)){
-                    ThrowError($"Variable '{name}' is not defined or is a constant", token);
-                    return null!;
-                }
+                if (value.Type == TokenType.CONST) ThrowError($"Variable '{name}' is a constant and is unchangeable", token);
                 var val = logic();
                 _variables[name] = new TypeNode(value.Type, name, val);
                 return new VarNode(name, val);
-            } else if (Current.Type == TokenType.GATE){
-                advance();
-                if(!_variables.TryGetValue(name, out var value)){
-                    ThrowError($"Variable '{name}' is not defined or is a constant", token);
-                    return null!;
-                }
-                if(value.Type == TokenType.COND){
-                    while(Current.Type != TokenType.GATE){
-                        logic();
-                        if(Current.Type == TokenType.COMMA) advance();
-                        else if(Current.Type != TokenType.GATE) ThrowError("Missing comma", Current);
-                    }
-                    expect(TokenType.GATE, "Found '\\' that was opened but not closed.");
-                    return new VarNode(name, value);
-                }
-                ThrowError("Unexpected '\\'", token);
             }
             return new VarNode(name);
         }
@@ -206,7 +210,7 @@ public class Parser{
 
     private void ThrowError(string message, Token token){
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"{message} at line {token.Line}, column {token.Column}");
+        Console.WriteLine($"{message} at line {token.Line}, column {token.Column}.");
         Console.ResetColor();
         Environment.Exit(1);
     }

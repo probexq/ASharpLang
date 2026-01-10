@@ -59,6 +59,16 @@ public class TypeNode : Node {
     }
 }
 
+public class LogicNode : Node{
+    public Node Condition {get;}
+    public Node If {get;}
+
+    public LogicNode(Node condition, Node nif){
+        Condition = condition;
+        If = nif;
+    }
+}
+
 public class ImportNode : Node {
     public string Path {get;}
 

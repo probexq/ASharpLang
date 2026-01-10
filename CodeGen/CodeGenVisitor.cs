@@ -45,18 +45,18 @@ public class CodeGenVisitor
         return "";
     }
 
-    public void Visit(Node node)
+    public void Visit(Node node) // needs to end with +1
     {
         switch (node)
         {
             case ProgramNode prog:
                 for(int i = 0; i<prog.Stats.Count; i++) {
-                    var curStat = prog.Stats[i];
-                    isLast = (i == prog.Stats.Count - 1);; 
-                    Visit(curStat);
-                    if(!isLast){
-                        _compiler.IL.Emit(OpCodes.Pop);
-                    }
+                    var cur = prog.Stats[i];
+                    Console.WriteLine($"{cur}, {i}");
+                    isLast = (i == prog.Stats.Count - 1);
+                    Visit(cur); 
+                    if(!isLast && cur is not TypeNode) _compiler.IL.Emit(OpCodes.Pop); // -1
+                    else if(isLast && cur is LogicNode l && l.If is ProgramNode pr && pr.Stats.Count == 0) _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0); // +1
                 }
                 break;
             case TypeNode t:
@@ -65,7 +65,7 @@ public class CodeGenVisitor
                     case TokenType.CONST: emit_const(t.Name, t.Var, leaveOnStack: isLast); break;
                     case TokenType.COND: emit_condition(t.Name, t.Var, leaveOnStack: isLast); break;
                 } break;
-                
+
             case ImportNode imp:
                 string fileName = imp.Path;
 
@@ -142,33 +142,36 @@ public class CodeGenVisitor
                 }
                 else if (c.FuncName == "ABS")
                 {
-                    Visit(c.Args[0]);
+                    Visit(c.Args[0]);// +1
                     MethodInfo MathAbsDouble = typeof(Math).GetMethod("Abs", new[] { typeof(double) })!;
-                    _compiler.IL.Emit(OpCodes.Call, MathAbsDouble);
+                    _compiler.IL.Emit(OpCodes.Call, MathAbsDouble);//-1
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log"){
-                    Visit(c.Args[0]);
+                    Visit(c.Args[0]);//+1
                     MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
-                    //_compiler.IL.Emit(OpCodes.Dup);
-                    _compiler.IL.Emit(OpCodes.Call, printDouble);
+                    _compiler.IL.Emit(OpCodes.Dup);//+1
+                    _compiler.IL.Emit(OpCodes.Call, printDouble);//-1
                 }
                 else
                 {
                     throw new Exception($"Unknown function '{c.FuncName}'");
                 }
                 break;
+            case LogicNode l:
+                emit_guard(l, leaveOnStack: isLast);
+                break;
             default: throw new Exception($"Unknown AST node '{node.GetType()}'");
         }
     }
     public void emit_let(string name, Node expr, bool leaveOnStack){
-        Visit(expr);
+        Visit(expr); //+1
         if(!_variables.TryGetValue(name, out var local)){
             local = _compiler.IL.DeclareLocal(typeof(double));
             _variables[name] = local;
         }
 
-        _compiler.IL.Emit(OpCodes.Stloc, local);
-        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
+        _compiler.IL.Emit(OpCodes.Stloc, local);//0
+        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);//+1
     }
     public void emit_const(string name, Node expr, bool leaveOnStack){
         Visit(expr);
@@ -183,12 +186,12 @@ public class CodeGenVisitor
         if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
     }
     public void emit_condition(string name, Node expr, bool leaveOnStack){
-        Visit(expr);
+        Visit(expr); // +1
 
-        _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0);
-        _compiler.IL.Emit(OpCodes.Ceq);
-        _compiler.IL.Emit(OpCodes.Ldc_I4_0);
-        _compiler.IL.Emit(OpCodes.Ceq);
+        _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0); // +1
+        _compiler.IL.Emit(OpCodes.Ceq); // -2, +1
+        _compiler.IL.Emit(OpCodes.Ldc_I4_0); // +1
+        _compiler.IL.Emit(OpCodes.Ceq); // -2, +1
         _compiler.IL.Emit(OpCodes.Conv_R8);
 
         if(!_variables.TryGetValue(name, out var local)){
@@ -196,13 +199,29 @@ public class CodeGenVisitor
             _variables[name] = local;
         }
 
-        _compiler.IL.Emit(OpCodes.Stloc, local);
-        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local);
+        _compiler.IL.Emit(OpCodes.Stloc, local); // -1
+        if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local); // +1
     }
     void emit_var(string name, Node value = null!){
         if(!_variables.TryGetValue(name, out var local)) ThrowError($"Variable '{name}' is not defined.");
-        if(value != null) {Visit(value); _compiler.IL.Emit(OpCodes.Stloc, local!);}
-        _compiler.IL.Emit(OpCodes.Ldloc, local!);
+        if(value != null) {Visit(value); _compiler.IL.Emit(OpCodes.Stloc, local!);}//if you are changing the value -1
+        _compiler.IL.Emit(OpCodes.Ldloc, local!); //+1
+    }
+    void emit_guard(LogicNode l, bool leaveOnStack){
+        Visit(l.Condition); // +1
+
+        _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0); // +1
+        _compiler.IL.Emit(OpCodes.Ceq); // -2, +1
+        Label endGuard = _compiler.IL.DefineLabel();
+        _compiler.IL.Emit(OpCodes.Brtrue, endGuard); // -1
+
+        bool leave = leaveOnStack;
+
+        Visit(l.If); // +1
+        
+        if(!leave)_compiler.IL.Emit(OpCodes.Pop); // -1
+
+        _compiler.IL.MarkLabel(endGuard);
     }
     private void ThrowError(string message){
         Console.ForegroundColor = ConsoleColor.Red;
