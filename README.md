@@ -7,7 +7,7 @@ It's a pretty lightweight compared to Julia or even Python (for now at least).
 A# is statically typed and converts to CIL (Common Intermediate Language).
 Note: the language uses the .ash file extension.
 
-## Why A#?
+## 2. Why A#?
 
 A# removes the verbosity of C#, making it easier to develop and calculate things.
 
@@ -38,12 +38,17 @@ let result = _(+#(a, b)),
 
 ---
 
-## 4 Roadmap
+## 4. Alpha Roadmap
 
-* **0.1.0+(Done)** log() for terminal output, basic syntax(normal +-*/^, let for variable declaration, |a| for Math.Abs (Modulus), $ for importing/including etc.)
-* **0.2.0+** Guard-based logic(new condition type), constants, optimizations and small fixes.
+* **0.1.0+ (Done)** log() for terminal output, basic syntax(normal +-*/^, let for variable declaration, |a| for Math.Abs (Modulus), $ for importing/including etc.)
+* **0.2.0+ (Done, but still optimizing and fixing any issues)** Guard-based logic(new condition type), constants, optimizations and small fixes.
 * **0.3.0+** Lambdas, ? Syntax for Math.Random, optimizations and fixes.
 * **0.4.0+** logf() for string support, elog() for Exceptions, !! syntax for error-catching.
+* **Beta**
+
+## 5. Progress
+
+See development progress on other branches named '0.x.0', where x is the next version number.
 
 ## End of README
 
