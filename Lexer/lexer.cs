@@ -8,10 +8,10 @@ public enum TokenType{
     NUMBER, IDENT, // 3, x - Basic
     PLUS, MINUS, MULT, DIV, POW, // +, -, *, /, ^ - Binary
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
-    NOT, AND, OR, // !, &, -- - Logical 
+    NOT, AND, OR, MORE, LESS, IFEQ, NOTEQ, // '!', 'and', 'or', '>', '<', '==', '!=' - Logical 
     MAX, MIN, // +#(), -#() - Syntax Functions
-    COMMA, LPAR, RPAR, // , ( ) - syntax
-    LET, // let - keywords
+    COMMA, LPAR, RPAR, GATE, // ',' '(' ')' '\' - syntax 
+    LET, CONST, COND, // let, const - keywords
     LOG, // log() basic terminal functions
     LAMBDA, EQ, IMPORT, // ::, =, $mconst - Misc
     EOF // End of file
@@ -48,7 +48,7 @@ public class Lexer {
         if (Current == '\n'){
             _line++;
             _column = 1; 
-        } else _column++;
+        } else if(Current != '\r') _column++;
         }
     public char peek_char(int offset = 1) {
         if(_pos + offset >= _text.Length) return '\0';
@@ -115,19 +115,36 @@ public class Lexer {
                     case '_': tokens.Add(new Token(TokenType.SQRT, "_", startLine, startCol)); advance(); break;
                     case '~': tokens.Add(new Token(TokenType.ROUND, "~", startLine, startCol)); advance(); break;
                     case '|': tokens.Add(new Token(TokenType.ABS, "|", startLine, startCol)); advance(); break;
-                    case '!': tokens.Add(new Token(TokenType.NOT, "!", startLine, startCol)); advance(); break;
+                    case '!':
+                        if(Next == '='){
+                            tokens.Add(new Token(TokenType.NOTEQ, "!=", startLine, startCol));
+                            advance(); advance();
+                        } else {
+                            tokens.Add(new Token(TokenType.NOT, "!", startLine, startCol)); advance();
+                        }
+                        break;
                     case '&': tokens.Add(new Token(TokenType.AND, "&", startLine, startCol)); advance(); break;
+                    case '>': tokens.Add(new Token(TokenType.MORE, ">", startLine, startCol)); advance(); break;
+                    case '<': tokens.Add(new Token(TokenType.LESS, "<", startLine, startCol)); advance(); break;
                     case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); advance(); break;
-                    // lambdas for 0.3.0
+                    /* lambdas for 0.3.0
                     case ':': if (_pos + 1 < _text.Length && _text[_pos + 1] == ':'){
                         tokens.Add(new Token(TokenType.LAMBDA, "::", startLine, startCol));
                         advance(); advance();
                     } else continue;
-                    break;
-                    case '=': tokens.Add(new Token(TokenType.EQ, "=", startLine, startCol)); advance(); break;
+                    break;*/
+                    case '=': 
+                        if(Next == '='){
+                            tokens.Add(new Token(TokenType.IFEQ, "==", startLine, startCol));
+                            advance(); advance();
+                        } else {
+                        tokens.Add(new Token(TokenType.EQ, "=", startLine, startCol)); advance();
+                        }
+                        break;
                     case '$': tokens.Add(new Token(TokenType.IMPORT, "$", startLine, startCol)); advance(); break;
                     case '(': tokens.Add(new Token(TokenType.LPAR, "(", startLine, startCol)); advance(); break;
                     case ')': tokens.Add(new Token(TokenType.RPAR, ")", startLine, startCol)); advance(); break;
+                    case '\\': tokens.Add(new Token(TokenType.GATE, "\\", startLine, startCol)); advance(); break;
                     default: 
                         int errLine = _line;
                         int errCol = _column;
@@ -170,7 +187,11 @@ public class Lexer {
 
         var value = _text.Substring(start, _pos - start);
         if(value == "let") return new Token(TokenType.LET, value, startLine, startColumn);
+        if(value == "const") return new Token(TokenType.CONST, value, startLine, startColumn);
+        if(value == "condition") return new Token(TokenType.COND, value, startLine, startColumn);
         if(value == "log") return new Token(TokenType.LOG, value, startLine, startColumn);
+        if(value == "and") return new Token(TokenType.AND, value, startLine, startColumn);
+        if(value == "or") return new Token(TokenType.OR, value, startLine, startColumn);
         return new Token(TokenType.IDENT, value, startLine, startColumn);
     }
 }

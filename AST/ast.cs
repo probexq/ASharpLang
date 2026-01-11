@@ -11,7 +11,11 @@ public class NumberNode : Node {
 
 public class VarNode : Node {
     public string Name {get;}
-    public VarNode(string name) => Name = name;
+    public Node Value {get;}
+    public VarNode(string name, Node value = null!){ 
+        Name = name;
+        Value = value;
+    }
 }
 
 public class BinOpNode : Node {
@@ -43,13 +47,25 @@ public class CallNode : Node {
     }
 }
 
-public class LetNode : Node {
+public class TypeNode : Node {
+    public TokenType Type {get;}
     public string Name {get;}
-    public Node Value {get;}
+    public Node Var {get;}
 
-    public LetNode(string name, Node value){
+    public TypeNode(TokenType type, string name, Node var){
+        Type = type;
         Name = name;
-        Value = value;
+        Var = var;
+    }
+}
+
+public class LogicNode : Node{
+    public Node Condition {get;}
+    public Node If {get;}
+
+    public LogicNode(Node condition, Node nif){
+        Condition = condition;
+        If = nif;
     }
 }
 
