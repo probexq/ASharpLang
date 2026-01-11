@@ -18,6 +18,13 @@ internal static class Program
             Console.WriteLine($"ashc v{version?.Major}.{version?.Minor}.{version?.Build}");
             Console.WriteLine($"Target: .NET 10.0 CIL");
             return;
+        } if(args[0] == "--changelog" || args[0] == "-log"){
+            Console.WriteLine("Changelog:");
+            Console.WriteLine("- Added boolean comparison operators '>=' and '<=';");
+            Console.WriteLine("- Added support for nested logic (nested guards);");
+            Console.WriteLine("- Fixed condition reassigning by disallowing non-boolean values;");
+            Console.WriteLine("- Added '--changelog'/'-log' command-line option to display release notes;");
+            return;
         }
         
         var file = Path.GetFullPath(args[0]);

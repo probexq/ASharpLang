@@ -46,7 +46,7 @@ public class Parser{
     private Node boolean(){
         Node node = addition();
 
-        while(Current.Type == TokenType.LESS || Current.Type == TokenType.MORE || Current.Type == TokenType.IFEQ || Current.Type == TokenType.NOTEQ){
+        while(Current.Type == TokenType.LESS || Current.Type == TokenType.MORE || Current.Type == TokenType.IFEQ || Current.Type == TokenType.NOTEQ || Current.Type == TokenType.MOREQ || Current.Type == TokenType.LESSEQ){
             TokenType op = Current.Type;
             advance();
             Node right = addition();
@@ -155,11 +155,18 @@ public class Parser{
     private Node parse_block(){
         expect(TokenType.GATE);
         List<Node> stats = new List<Node>();
+        Node stmt = null!;
 
         while(Current.Type != TokenType.GATE && Current.Type != TokenType.EOF){
-            Node stmt = Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND ? parse_new_type() : logic();
-            stats.Add(stmt);
-            expect(TokenType.COMMA, "Expected ',' at the end of the line.");
+            if(Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND) stats.Add(parse_new_type());
+            else { 
+                stmt = logic();
+                if(Current.Type == TokenType.GATE){
+                    stats.Add(parse_cond(stmt));
+                    if(Current.Type == TokenType.EOF) break;
+                } else {stats.Add(stmt);}
+            }
+            if(stats.Last() is not LogicNode) expect(TokenType.COMMA, "Expected ',' at the end of the line.");
         }
 
         expect(TokenType.GATE);
@@ -185,9 +192,9 @@ public class Parser{
                 if (value.Type == TokenType.CONST) ThrowError($"Variable '{name}' is a constant and is unchangeable", token);
                 var val = boolean();
                 _variables[name] = new TypeNode(value.Type, name, val);
-                return new VarNode(name, val);
+                return new VarNode(name, value.Type, val);
             }
-            return new VarNode(name);
+            return new VarNode(name, value.Type);
         }
         if(Current.Type == TokenType.MAX || Current.Type == TokenType.MIN || Current.Type == TokenType.LOG){
             string name = Current.Value;
@@ -202,6 +209,7 @@ public class Parser{
                     ThrowError("Missing a comma between function arguments", Current);
                 }
             }
+            if(Current.Type == TokenType.EQ) ThrowError("Unexpected '='", Current);
             expect(TokenType.RPAR, "Didn't close '('");
             return new CallNode(name, args);
         }
@@ -216,6 +224,7 @@ public class Parser{
         if(Current.Type == TokenType.LPAR){
             advance();
             Node expr = logic();
+            if(Current.Type == TokenType.EQ) ThrowError("Unexpected '='", Current);
             expect(TokenType.RPAR, "Didn't close '('");
             return expr;
         }
@@ -225,7 +234,7 @@ public class Parser{
 
     private void ThrowError(string message, Token token){
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"{message} at line {token.Line}, column {token.Column}.");
+        Console.WriteLine($"{message} at line {token.Line}, column {token.Column - 1}.");
         Console.ResetColor();
         Environment.Exit(1);
     }

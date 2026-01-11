@@ -50,8 +50,8 @@ private bool isLast;
         {
             case ProgramNode prog:
                 for(int i = 0; i<prog.Stats.Count; i++) {
-                    var cur = prog.Stats[i];
-                    Console.WriteLine($"{cur}, {i}");
+                    var cur = prog.Stats[ i];
+                    // Console.WriteLine($"{cur}, {i}");
                     isLast = (i == prog.Stats.Count - 1);
                     Visit(cur);
                     if(!isLast && cur is not TypeNode) _compiler.IL.Emit(OpCodes.Pop); // -1
@@ -81,8 +81,8 @@ private bool isLast;
                 break;
 
             case VarNode v:
-                if(v.Value != null) emit_var(v.Name, v.Value);
-                else emit_var(v.Name);
+                if(v.Value != null) emit_var(v.Name, v.Type, v.Value);
+                else emit_var(v.Name, v.Type);
                 break;
 
             case BinOpNode b:
@@ -128,6 +128,20 @@ private bool isLast;
                     // '!='
                     case TokenType.NOTEQ:
                         _compiler.IL.Emit(OpCodes.Ceq); // -1
+                        _compiler.IL.Emit(OpCodes.Ldc_I4_0); // +1
+                        _compiler.IL.Emit(OpCodes.Ceq); // -1
+                        _compiler.IL.Emit(OpCodes.Conv_R8); 
+                        break;
+                    // '>='
+                    case TokenType.MOREQ:
+                        _compiler.IL.Emit(OpCodes.Clt); // -1
+                        _compiler.IL.Emit(OpCodes.Ldc_I4_0); // +1
+                        _compiler.IL.Emit(OpCodes.Ceq); // -1
+                        _compiler.IL.Emit(OpCodes.Conv_R8); 
+                        break;
+                    // '<='
+                    case TokenType.LESSEQ:
+                        _compiler.IL.Emit(OpCodes.Cgt); // -1
                         _compiler.IL.Emit(OpCodes.Ldc_I4_0); // +1
                         _compiler.IL.Emit(OpCodes.Ceq); // -1
                         _compiler.IL.Emit(OpCodes.Conv_R8); 
@@ -263,9 +277,19 @@ private bool isLast;
         _compiler.IL.Emit(OpCodes.Stloc, local); // -1
         if(leaveOnStack) _compiler.IL.Emit(OpCodes.Ldloc, local); // +1
     }
-    void emit_var(string name, Node value = null!){
+    void emit_var(string name, TokenType type, Node value = null!){
         if(!_variables.TryGetValue(name, out var local)) ThrowError($"Variable '{name}' is not defined.");
-        if(value != null) {Visit(value); _compiler.IL.Emit(OpCodes.Stloc, local!);}//if you are changing the value -1
+        if(value != null) {
+            Visit(value); 
+            if(type == TokenType.COND){
+                _compiler.IL.Emit(OpCodes.Ldc_R8, 0.0); // +1
+                _compiler.IL.Emit(OpCodes.Ceq); // -1
+                _compiler.IL.Emit(OpCodes.Ldc_I4_0); // +1
+                _compiler.IL.Emit(OpCodes.Ceq); // -1
+                _compiler.IL.Emit(OpCodes.Conv_R8);
+            }
+            _compiler.IL.Emit(OpCodes.Stloc, local!); // if you are changing the value -1
+        }
         _compiler.IL.Emit(OpCodes.Ldloc, local!); //+1
     }
     void emit_guard(LogicNode l, bool leaveOnStack){

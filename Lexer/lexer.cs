@@ -8,7 +8,7 @@ public enum TokenType{
     NUMBER, IDENT, // 3, x - Basic
     PLUS, MINUS, MULT, DIV, POW, // +, -, *, /, ^ - Binary
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
-    NOT, AND, OR, MORE, LESS, IFEQ, NOTEQ, // '!', 'and', 'or', '>', '<', '==', '!=' - Logical 
+    NOT, AND, OR, MORE, MOREQ, LESSEQ, LESS, IFEQ, NOTEQ, // '!', 'and', 'or', '>', '<', '==', '!=' - Logical 
     MAX, MIN, // +#(), -#() - Syntax Functions
     COMMA, LPAR, RPAR, GATE, // ',' '(' ')' '\' - syntax 
     LET, CONST, COND, // let, const - keywords
@@ -124,8 +124,22 @@ public class Lexer {
                         }
                         break;
                     case '&': tokens.Add(new Token(TokenType.AND, "&", startLine, startCol)); advance(); break;
-                    case '>': tokens.Add(new Token(TokenType.MORE, ">", startLine, startCol)); advance(); break;
-                    case '<': tokens.Add(new Token(TokenType.LESS, "<", startLine, startCol)); advance(); break;
+                    case '>':
+                        if(Next == '='){
+                            tokens.Add(new Token(TokenType.MOREQ, ">=", startLine, startCol)); 
+                            advance(); advance();
+                        } else {
+                            tokens.Add(new Token(TokenType.MORE, ">", startLine, startCol)); advance();
+                        }
+                    break;
+                    case '<': 
+                        if(Next == '='){
+                            tokens.Add(new Token(TokenType.LESSEQ, "<=", startLine, startCol)); 
+                            advance(); advance();
+                        } else {
+                            tokens.Add(new Token(TokenType.LESS, "<", startLine, startCol)); advance();
+                        }
+                    break;
                     case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); advance(); break;
                     /* lambdas for 0.3.0
                     case ':': if (_pos + 1 < _text.Length && _text[_pos + 1] == ':'){
@@ -147,7 +161,7 @@ public class Lexer {
                     case '\\': tokens.Add(new Token(TokenType.GATE, "\\", startLine, startCol)); advance(); break;
                     default: 
                         int errLine = _line;
-                        int errCol = _column;
+                        int errCol = _column - 1;
                         char errChar = Current;
 
                         Console.ForegroundColor = ConsoleColor.Red;

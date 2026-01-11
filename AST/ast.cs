@@ -12,9 +12,11 @@ public class NumberNode : Node {
 public class VarNode : Node {
     public string Name {get;}
     public Node Value {get;}
-    public VarNode(string name, Node value = null!){ 
+    public TokenType Type {get;}
+    public VarNode(string name, TokenType type, Node value = null!){ 
         Name = name;
         Value = value;
+        Type = type;
     }
 }
 
