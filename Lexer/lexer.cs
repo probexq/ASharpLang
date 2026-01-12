@@ -10,7 +10,7 @@ public enum TokenType{
     SQRT, ROUND, ABS, // _, ~, |x| - Unary
     NOT, AND, OR, MORE, MOREQ, LESSEQ, LESS, IFEQ, NOTEQ, // '!', 'and', 'or', '>', '<', '==', '!=' - Logical 
     MAX, MIN, // +#(), -#() - Syntax Functions
-    COMMA, LPAR, RPAR, GATE, // ',' '(' ')' '\' - syntax 
+    COMMA, LPAR, RPAR, LCURL, RCURL, // ',' '(' ')' '{' '}' - syntax 
     LET, CONST, COND, // let, const - keywords
     LOG, // log() basic terminal functions
     LAMBDA, EQ, IMPORT, // ::, =, $mconst - Misc
@@ -158,7 +158,8 @@ public class Lexer {
                     case '$': tokens.Add(new Token(TokenType.IMPORT, "$", startLine, startCol)); advance(); break;
                     case '(': tokens.Add(new Token(TokenType.LPAR, "(", startLine, startCol)); advance(); break;
                     case ')': tokens.Add(new Token(TokenType.RPAR, ")", startLine, startCol)); advance(); break;
-                    case '\\': tokens.Add(new Token(TokenType.GATE, "\\", startLine, startCol)); advance(); break;
+                    case '{': tokens.Add(new Token(TokenType.LCURL, "{", startLine, startCol)); advance(); break;
+                    case '}': tokens.Add(new Token(TokenType.RCURL, "}", startLine, startCol)); advance(); break;
                     default: 
                         int errLine = _line;
                         int errCol = _column - 1;

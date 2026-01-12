@@ -12,8 +12,7 @@ public class ILCompiler
     private readonly MethodBuilder _method;
     private readonly ILGenerator _il;
 
-    public ILCompiler()
-    {
+    public ILCompiler() {
         var asmName = new AssemblyName("ASharpProgram");
         _asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.RunAndCollect);
         _module = _asmBuilder.DefineDynamicModule("MainModule");
@@ -32,9 +31,8 @@ public class ILCompiler
 
     public ILGenerator IL => _il;
 
-    public Type Finish()
-    {
+    public void Finish() {
         _il.Emit(OpCodes.Ret);
-        return _type.CreateType();
+        _type.CreateType();
     }
 }

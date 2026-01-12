@@ -116,7 +116,7 @@ public class Parser{
             if(Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND) stats.Add(parse_new_type());
             else {
                 stmt = logic();
-                if(Current.Type == TokenType.GATE){
+                if(Current.Type == TokenType.LCURL){
                     stats.Add(parse_cond(stmt));
                     if(Current.Type == TokenType.EOF) break;
                 } else {stats.Add(stmt);}
@@ -153,23 +153,22 @@ public class Parser{
     }
 
     private Node parse_block(){
-        expect(TokenType.GATE);
+        expect(TokenType.LCURL);
         List<Node> stats = new List<Node>();
         Node stmt = null!;
 
-        while(Current.Type != TokenType.GATE && Current.Type != TokenType.EOF){
+        while(Current.Type != TokenType.RCURL && Current.Type != TokenType.EOF){
             if(Current.Type == TokenType.LET || Current.Type == TokenType.CONST || Current.Type == TokenType.COND) stats.Add(parse_new_type());
-            else { 
+            else {
                 stmt = logic();
-                if(Current.Type == TokenType.GATE){
+                if(Current.Type == TokenType.LCURL){
                     stats.Add(parse_cond(stmt));
                     if(Current.Type == TokenType.EOF) break;
                 } else {stats.Add(stmt);}
             }
             if(stats.Last() is not LogicNode) expect(TokenType.COMMA, "Expected ',' at the end of the line.");
         }
-
-        expect(TokenType.GATE);
+        expect(TokenType.RCURL);
         return new ProgramNode(stats);
     }
 
@@ -231,7 +230,7 @@ public class Parser{
         ThrowError($"Unexpected '{Current.Value}'", Current);
         return null!; 
     }
-
+    
     private void ThrowError(string message, Token token){
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"{message} at line {token.Line}, column {token.Column - 1}.");

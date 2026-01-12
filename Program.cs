@@ -20,10 +20,8 @@ internal static class Program
             return;
         } if(args[0] == "--changelog" || args[0] == "-log"){
             Console.WriteLine("Changelog:");
-            Console.WriteLine("- Added boolean comparison operators '>=' and '<=';");
-            Console.WriteLine("- Added support for nested logic (nested guards);");
-            Console.WriteLine("- Fixed condition reassigning by disallowing non-boolean values;");
-            Console.WriteLine("- Added '--changelog'/'-log' command-line option to display release notes;");
+            Console.WriteLine("- Changed from '\\\\' to '{}' because of vscode issues and to resemble C#'s syntax more;");
+            //Console.WriteLine("- ;");
             return;
         }
         
@@ -46,8 +44,7 @@ internal static class Program
         var codegen = new CodeGenVisitor(compiler, file);
         codegen.Visit(ast);
 
-        var programType = compiler.Finish();
-        var result = programType.GetMethod("Main")!.Invoke(null, null);
+        compiler.Finish();
 
     }
 }
