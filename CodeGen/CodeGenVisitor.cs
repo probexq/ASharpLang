@@ -54,8 +54,8 @@ private int stack = 0;
                     Console.WriteLine($"{cur}, {i}, {isLast}");
                     Visit(cur);
                     if (!isLast && stack == 1) Emit(OpCodes.Pop, -1);
-                    Console.WriteLine($"Stack: {stack}");
-                } Console.WriteLine($"Final Stack: {stack}"); break;
+                    //Console.WriteLine($"Stack: {stack}");
+                } break;
             case TypeNode t:
                 switch (t.Type) {
                     case TokenType.LET: emit_let(t.Name, t.Var, leaveOnStack: isLast); break;
@@ -159,8 +159,7 @@ private int stack = 0;
                         break;
                     // '^'
                     case TokenType.POW:
-                        MethodInfo powDouble = typeof(Math).GetMethod("Pow")!; 
-                        Emit(OpCodes.Call, -1, powDouble); // -1 
+                        emit_pow(b.Right);
                         break;
                     default: throw new Exception($"Unsupported binary opperand: {b.Op}");
                 }
@@ -214,8 +213,10 @@ private int stack = 0;
                 }
                 else if(c.FuncName == "LOG" || c.FuncName == "log") {
                     Visit(c.Args[0]); // +1
+                    Emit(OpCodes.Conv_R8, 0);
                     MethodInfo printDouble = typeof(Console).GetMethod("WriteLine", new Type[] { typeof(double) })!;
                     Emit(OpCodes.Call, -1, printDouble); // -1
+                    if(isLast) Emit(OpCodes.Ldc_R8, 1, 0.0);
                 }
                 else {
                     throw new Exception($"Unknown function '{c.FuncName}'");
@@ -226,6 +227,31 @@ private int stack = 0;
                 break;
             default: throw new Exception($"Unknown AST node '{node.GetType()}'");
         }
+    }
+    public void emit_pow(Node right){
+        LocalBuilder expo = _compiler.IL.DeclareLocal(typeof(double));
+        LocalBuilder bse = _compiler.IL.DeclareLocal(typeof(double));
+        Emit(OpCodes.Stloc, -1, expo);
+        Emit(OpCodes.Stloc, -1, bse);
+        Emit(OpCodes.Ldloc, 1, expo);
+        Emit(OpCodes.Ldc_R8, 1, 2.0);
+        Emit(OpCodes.Ceq, -1);
+        Label mulLabel = _compiler.IL.DefineLabel();
+        Label powLabel = _compiler.IL.DefineLabel();
+        Emit(OpCodes.Brtrue, -1, mulLabel);
+        Emit(OpCodes.Ldloc, 1, bse);
+        Emit(OpCodes.Ldloc, 1, expo);
+        MethodInfo powDouble = typeof(Math).GetMethod("Pow")!; 
+        Emit(OpCodes.Call, -1, powDouble); // -1
+        Emit(OpCodes.Br, 0, powLabel);
+        _compiler.IL.MarkLabel(mulLabel);
+        this.stack = 0;
+        Emit(OpCodes.Ldloc, 1, bse);
+        Emit(OpCodes.Ldloc, 1, bse);
+        Emit(OpCodes.Mul, -1);
+        Emit(OpCodes.Br, 0, powLabel);
+        _compiler.IL.MarkLabel(powLabel);
+        this.stack = 1;
     }
     public void emit_let(string name, Node expr, bool leaveOnStack) {
         Visit(expr); // +1
@@ -290,14 +316,14 @@ private int stack = 0;
         Label endGuard = _compiler.IL.DefineLabel();
         Label falsePath = _compiler.IL.DefineLabel();
         if(arg is UnOpNode u && u.Op == TokenType.NOT) {Emit(OpCodes.Brfalse, -1, falsePath);} // -1
-        else Emit(OpCodes.Brtrue, -1, falsePath); // -1
+        else {Emit(OpCodes.Brtrue, -1, falsePath);} // -1
 
         int ogstack = this.stack;
 
         Visit(l.If); // +1
         
+        if(l.If is ProgramNode prg && prg.Stats.Count == 0) Emit(OpCodes.Ldc_R8, 1, 0.0);
         if(!leaveOnStack)Emit(OpCodes.Pop, -1); // if the guard is not last -1
-        if(l.If is ProgramNode pr && pr.Stats.Count == 0) Emit(OpCodes.Ldc_R8, 1, 0.0);
         int truestack = this.stack;
         Emit(OpCodes.Br, 0, endGuard);
 
@@ -319,7 +345,8 @@ private int stack = 0;
             case Label l: _compiler.IL.Emit(opcode, l); break;
             case null: _compiler.IL.Emit(opcode); break;
         }
-        stack += stackdelta;
+        stack = stack + stackdelta;
+        //Console.WriteLine($"{opcode}: {stack}");
     }
     private void ThrowError(string message){
         Console.ForegroundColor = ConsoleColor.Red;

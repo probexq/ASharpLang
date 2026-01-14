@@ -44,7 +44,7 @@ internal static class Program
         var codegen = new CodeGenVisitor(compiler, file);
         codegen.Visit(ast);
 
-        compiler.Finish();
-
+        var programType = compiler.Finish();
+        var result = programType.GetMethod("Main")!.Invoke(null, null);
     }
 }

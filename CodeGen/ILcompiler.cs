@@ -31,8 +31,8 @@ public class ILCompiler
 
     public ILGenerator IL => _il;
 
-    public void Finish() {
+    public Type Finish() {
         _il.Emit(OpCodes.Ret);
-        _type.CreateType();
+        return _type.CreateType();
     }
 }

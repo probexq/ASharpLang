@@ -95,7 +95,7 @@ public class Parser{
         if(Current.Type == TokenType.POW){
             TokenType op = Current.Type;
             advance();
-            Node right = factor();
+            Node right = factor ();
             node = new BinOpNode(node, op , right);
         }
         return node;
