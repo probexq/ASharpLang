@@ -40,16 +40,12 @@ let result = _(+#(a, b)),
 
 ## 4. Alpha Roadmap
 
-<<<<<<< HEAD
 * **0.1.0+(Done)** log() for terminal output, basic syntax(normal +-*/^, let for variable declaration, |a| for Math.Abs (Modulus), $ for importing/including etc.)
 * **0.2.0+** Guard-based logic(new condition type) -, constants +, optimizations and small fixes ~.
-=======
 * **0.1.0+ (Done)** log() for terminal output, basic syntax(normal +-*/^, let for variable declaration, |a| for Math.Abs (Modulus), $ for importing/including etc.)
 * **0.2.0+ (Done, but still optimizing and fixing any issues)** Guard-based logic(new condition type), constants, optimizations and small fixes.
->>>>>>> a6550a5214f463caf6333563cadb8d8f8c66ace0
 * **0.3.0+** Lambdas, ? Syntax for Math.Random, optimizations and fixes.
 * **0.4.0+** logf() for string support, elog() for Exceptions, !! syntax for error-catching.
-* **Beta**
 
 ## 5. Progress
 
